@@ -130,6 +130,15 @@ void main() {
     });
   });
 
+  group('type weights follow the site', () {
+    // styles.css: `h1, h2 { font-weight: 600 }`. The store name is the app's
+    // <h1> and used to be w400, which read as body copy rather than a heading.
+    test('the store name is bold, like the website h1', () {
+      expect(StoreTheme.light().textTheme.displaySmall?.fontWeight,
+          FontWeight.w600);
+    });
+  });
+
   group('painted colour is what the theme declares', () {
     // The failure this guards against: the style declares a colour but the
     // widget paints something else, because a DefaultTextStyle upstream won.

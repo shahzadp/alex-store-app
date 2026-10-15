@@ -241,7 +241,7 @@ class _WhatsAppBar extends StatelessWidget {
                   onPressed: () => openWhatsApp(
                     context: context,
                     number: catalog?.store.whatsapp ?? '',
-                    message: product.whatsappMessage(catalog?.store.whatsapp ?? ''),
+                    message: product.whatsappMessage(catalog?.store.name ?? 'Alex Store'),
                   ),
                   child: Text.rich(
                     whatsappButtonLabel(

@@ -15,6 +15,10 @@
 /// rendered the hero heading in body-copy grey instead of near-black. Every
 /// style below therefore names its colour, and `theme_test.dart` fails if one
 /// is ever left unset.
+///
+/// The weights follow the site too: `styles.css` sets `h1, h2 { font-weight:
+/// 600 }`, so `displaySmall` is 600 rather than the hairline 400 it used to
+/// be. The store name is the app's `<h1>` and should not read as body copy.
 library;
 
 import 'package:flutter/material.dart';
@@ -78,7 +82,7 @@ class StoreTheme {
       // below replaces the styles anyway, so the only thing it buys is a
       // false sense that colours are handled. They are set explicitly instead.
       textTheme: base.textTheme.copyWith(
-        displaySmall: TextStyle(fontSize: 30, fontWeight: FontWeight.w400, height: 1.15, letterSpacing: -0.4, color: ink),
+        displaySmall: TextStyle(fontSize: 30, fontWeight: FontWeight.w600, height: 1.15, letterSpacing: -0.4, color: ink),
         headlineMedium: TextStyle(fontSize: 24, fontWeight: FontWeight.w500, height: 1.2, letterSpacing: -0.3, color: ink),
         headlineSmall: TextStyle(fontSize: 19, fontWeight: FontWeight.w500, height: 1.25, letterSpacing: -0.2, color: ink),
         titleMedium: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, height: 1.3, color: ink),

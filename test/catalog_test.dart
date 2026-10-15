@@ -254,10 +254,16 @@ void main() {
         'details': 'Thrown in small batches.',
         'specs': <String, String>{},
       });
-      final message = Uri.decodeComponent(p.whatsappMessage('923288304524'));
+      // No Uri.decodeComponent here. This used to decode the result, which is
+      // exactly what hid the double-encoding bug: whatsappMessage pre-encoded
+      // the text, the test undid it, and whatsappLink then encoded it a second
+      // time on the way to WhatsApp. The message is plain text now, and
+      // whatsapp_link_test.dart covers the URL boundary.
+      final message = p.whatsappMessage('Alex Store');
       expect(message, contains('Stoneware Mug'));
       expect(message, contains('Rs 7,800'));
       expect(message, contains('Glazed stoneware'));
+      expect(message, contains('Kitchen'));
     });
   });
 }

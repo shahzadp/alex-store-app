@@ -154,8 +154,10 @@ that the two catalog files cannot disagree.
 These are not preferences; breaking them breaks the shop.
 
 - **WhatsApp is the only purchase path.** No cart, no account, no checkout.
-  Every "order" control is a `wa.me` link with the product, price and
-  description already written into the message.
+  Every "order" control is a `whatsapp://send` deep link (falling back to
+  `https://wa.me`) with the product, price and description already written into
+  the message. WhatsApp prefills the message and the shopper taps send — no URL
+  can send on their behalf.
 - **PKR only, integer paisa.** `price_cents: 780000` is Rs 7,800. No
   currency selector, no USD, no `double` anywhere near a price.
 - **Grid uniformity is enforced by layout, not discipline.** Card name and

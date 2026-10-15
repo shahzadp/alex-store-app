@@ -17,16 +17,40 @@ import '../theme.dart';
 
 /// Builds a `wa.me` link.
 ///
-/// [message] is the pre-written text. It is URL-encoded here rather than at
-/// each call site so that no screen can accidentally ship a link with raw
-/// spaces or an un-escaped `&` — which truncates the message silently at the
-/// first ampersand and drops the product name.
+/// [message] is the pre-written text, in PLAIN form. It is URL-encoded here
+/// rather than at each call site so that no screen can accidentally ship a
+/// link with raw spaces or an un-escaped `&` — which truncates the message
+/// silently at the first ampersand and drops the product name.
+///
+/// **Encode exactly once.** `Product.whatsappMessage` used to return an
+/// already-encoded string, so this encoded it a second time: a newline became
+/// `%250A`, WhatsApp decoded it once, and the message arrived in the chat
+/// showing a literal "%0A" instead of a line break. `whatsapp_link_test.dart`
+/// fails if the message ever arrives pre-encoded again.
 String whatsappLink({
   required String number,
   required String message,
 }) {
   final digits = number.replaceAll(RegExp(r'[^0-9]'), '');
   return 'https://wa.me/$digits?text=${Uri.encodeComponent(message)}';
+}
+
+/// The same link, aimed at the installed WhatsApp app rather than a browser.
+///
+/// `wa.me` is a universal link: with the app installed Android opens WhatsApp
+/// directly, but without it the shopper lands in a browser and the long
+/// percent-encoded message is visible in the address bar while the page
+/// redirects. `whatsapp://send` skips the redirect, and the browser path stays
+/// as the fallback.
+///
+/// This still prefills rather than sends. WhatsApp requires the shopper to tap
+/// send, by design; there is no URL that sends a message without them.
+String whatsappAppLink({
+  required String number,
+  required String message,
+}) {
+  final digits = number.replaceAll(RegExp(r'[^0-9]'), '');
+  return 'whatsapp://send?phone=$digits&text=${Uri.encodeComponent(message)}';
 }
 
 /// A button label with "WhatsApp" picked out in the site's accent green.

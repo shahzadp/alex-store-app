@@ -96,22 +96,33 @@ class Product {
   /// catalog is not fully indexed — see [Catalog.isSearchable].
   final Float32List? vector;
 
-  /// The WhatsApp message, pre-written exactly as the site builds it: the
-  /// product, its price and its description, so the shopkeeper does not have
-  /// to reconstruct what is being asked about.
-  String whatsappMessage(String whatsappNumber) {
-    final buffer = StringBuffer()
-      ..writeln('Hello, I would like to order:')
-      ..writeln()
-      ..writeln('$name — ${price.formatted}')
-      ..writeln()
-      ..writeln(description);
-    if (details.isNotEmpty) {
-      buffer
-        ..writeln()
-        ..writeln(details);
-    }
-    return Uri.encodeComponent(buffer.toString());
+  /// The WhatsApp message, pre-written exactly as the site builds it in
+  /// `common.js:productLink`, so the shopkeeper does not have to reconstruct
+  /// what is being asked about.
+  ///
+  /// Returns PLAIN TEXT. It must not be URL-encoded here: `whatsappLink`
+  /// encodes the message, and encoding twice produces `%250A` for a newline,
+  /// which WhatsApp then renders literally as "%0A" instead of a line break.
+  /// Encoding belongs in exactly one place.
+  ///
+  /// [storeName] is interpolated the way the site does ("Hi Alex Store! ...").
+  ///
+  /// Note what is NOT here: the long [details] copy. The site deliberately
+  /// keeps this to a few lines — "only ask about the detail if there is any,
+  /// and keep it to one extra line" — and an order message long enough to
+  /// scroll is one the shopkeeper will not read.
+  String whatsappMessage(String storeName) {
+    final lines = <String>[
+      "Hi $storeName! I'd like to order:",
+      '',
+      '*$name*',
+      '$category - ${price.formatted}',
+    ];
+    if (description.isNotEmpty) lines.add(description);
+    lines
+      ..add('')
+      ..add('Is it available?');
+    return lines.join('\n');
   }
 
   factory Product.fromJson(Map<String, dynamic> json) {

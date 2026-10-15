@@ -29,15 +29,22 @@ Future<bool> launch(String url) async {
 ///
 /// WhatsApp is the only purchase path in this store (MEMORY.md §3), so a
 /// silently-dead button here means a lost sale with no explanation.
+///
+/// Tries `whatsapp://send` first so the app opens directly, then falls back to
+/// the `https://wa.me` universal link for devices without WhatsApp installed.
+/// Either way the message is PREFILLED and the shopper taps send — WhatsApp
+/// offers no way to send on someone's behalf.
 Future<void> openWhatsApp({
   required BuildContext context,
   required String number,
   required String message,
 }) async {
-  final url = whatsappLink(number: number, message: message);
-
-  final opened = await launch(url);
+  final direct = whatsappAppLink(number: number, message: message);
+  final opened = await launch(direct);
   if (opened || !context.mounted) return;
+
+  final openedWeb = await launch(whatsappLink(number: number, message: message));
+  if (openedWeb || !context.mounted) return;
 
   await showDialog<void>(
     context: context,

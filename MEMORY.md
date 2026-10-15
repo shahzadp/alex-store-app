@@ -344,6 +344,51 @@ one gets dark text, and no call site can get it wrong.
 4.5:1 against the button colour, so "dark button, light text" is now enforced
 rather than remembered. Reintroducing the bug makes it fail at 2.09:1.
 
+### Encode the WhatsApp message ONCE, or the chat shows "%0A" as literal text
+
+Tapping "Order on WhatsApp" produced a message reading
+
+```
+Hello%0A%0AStoneware%20Mug%20%E2%80%94%20Rs%207%2C800
+```
+
+— percent escapes as visible text, instead of a message with line breaks.
+
+Cause: `Product.whatsappMessage` returned `Uri.encodeComponent(message)` and
+`whatsappLink` then encoded it **again**. A newline became `%250A`, WhatsApp
+decoded the query parameter once, and displayed the single-encoded string. The
+link was well-formed the whole time, so nothing errored and nothing looked
+wrong until you read the message.
+
+**Encode at exactly one boundary.** `whatsappMessage` now returns plain text
+and `whatsappLink` owns the encoding. `whatsapp_link_test.dart` asserts the raw
+URL contains no `%25`, which is the encoding of a literal `%` and therefore the
+fingerprint of a double encode.
+
+**The test that hid it:** `catalog_test.dart` asserted on
+`Uri.decodeComponent(p.whatsappMessage(...))`. Decoding the result undid the
+first encode, so the test passed while the shipped link was broken. A test that
+decodes what it is testing has stopped testing the thing that matters — assert
+on the raw value, and cover the URL boundary separately.
+
+### WhatsApp prefills; it cannot send for you
+
+The remaining half of "why is it not normal text" is not a bug. `?text=` is
+WhatsApp's documented behaviour — it opens the chat with the message **in the
+compose box**, and the shopper taps send. There is no URL parameter that sends a
+message without them; the platform requires that confirmation deliberately.
+
+What *can* be improved is not bouncing through a browser: `openWhatsApp` now
+tries `whatsapp://send?phone=…&text=…` first and falls back to the `https://`
+universal link, so the app opens directly instead of a redirect page with the
+whole message visible in the address bar.
+
+The app's message now also matches the site's `common.js:productLink` exactly:
+store name, `*bold*` product name, category and price on one line, the short
+description, and "Is it available?". It used to append the entire long-form
+`details` block, which the site deliberately does not — an order message long
+enough to scroll is one the shopkeeper will not read.
+
 ### The three-button navigation bar is ~48dp, and every hard-coded bottom padding was smaller
 
 Home, shop and search all ended with a hard-coded bottom pad of 28dp. Android's
