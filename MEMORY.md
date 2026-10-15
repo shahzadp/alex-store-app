@@ -17,11 +17,12 @@ self-contained.
   flutter_rust_bridge, ranking the site's published vectors.
 - The site's `catalog.json` now carries those vectors. It did not until
   `scripts/patch-store-catalog-json.mjs` ran.
-- **The Rust crate builds and its tests run** (18 of 19 green). The Dart side is
-  still design-only: no Flutter SDK, no Android build, no device, no emulator.
-- **Search is not yet trustworthy.** The engine now responds to its input, but
-  its vectors do not match the site's. Treat every ranking claim as unverified
-  until `native_reproduces_every_site_vector` passes. See §3.
+- **The Rust crate builds and its tests run** (19 green, including parity).
+  The Dart side is still design-only: no Flutter SDK build, no device, no
+  emulator.
+- **Search now matches the site.** The native engine reproduces the WASM's
+  vectors bit-exactly (worst per-dimension difference `0.000e+0`), so the app's
+  rankings are the site's rankings. See §3.
 
 ---
 
@@ -44,102 +45,96 @@ true.
 
 ## 3. Things that have actually bitten, or will
 
-### The one that is currently open
+### Parity: SOLVED. The bug was in how the model was extracted, not in the engine.
 
-**The native engine still does not reproduce the site's vectors.** After the
-fix below, `cargo test --test parity` runs 8/9 green but
-`native_reproduces_every_site_vector` fails with **cosine ≈ 0.0** against the
-engine's own output (0.26 worst, −0.12 worst — i.e. uncorrelated). The engine is
-now input-dependent again, but the numbers are wrong.
+`cargo test --test parity` is **9/9 green**, and the native engine reproduces
+the WASM's vectors **bit-exactly** — worst per-dimension difference across all
+eight products is `0.000e+0`, not merely inside the 0.001 tolerance.
 
-#### The 192-byte misalignment (FOUND and FIXED)
+#### The actual bug: a WASM file is not a WASM memory
 
-The single biggest trap so far, and it produced a *silently useless* app.
+The obvious way to recover the model is to find the `TERN` magic in the `.wasm`
+and slice from there. That is wrong, and it fails silently: the file loads,
+`verify_sha256` passes (the scripts recompute the hash), and `embed()` returns
+unit-length vectors, so nothing complains.
 
-The blob inside the WASM is **192 bytes shorter than `compute_layout` expects**
-(7,492,088 vs 7,492,280). Applied as-is, the engine reads every section 192
-bytes late, and the consequences compound:
+A WASM data segment is stored in the FILE as
 
-1. The last 192 bytes of the projection bias fall off the end of the data and
-   land on the WASM's own panic strings — literally `"W_out has bias"`.
-2. Each LayerNorm bias picks up 48 words of packed-int4 data from the following
-   weight block. Decoded as fp32 those are ~1e+13 … 1e+25.
-3. A 1e+25 LayerNorm bias makes BitLinear's internal LayerNorm overflow:
-   `var` → `Inf` → `inv_std` → 0, so every Q/K/V collapses to exactly zero.
-4. `embed()` still returns a unit-length vector and still "works", so nothing
-   errors — but **it returns the same vector for every input**. Search silently
-   returns one fixed ranking for every query.
+```
+[flags][offset expression][size][payload]
+```
 
-The engine is **not** at fault. `compute_layout` is correct; the blob's
-*embedding section* is shorter than it assumes. `training/pack/encoders.py`
-packs `vocab × (d_model/2)` = 30522 rows, but the data holds **30521** rows
-(30521 × 192 = 5,860,032, not 5,860,224).
+so **consecutive segments are separated by their own headers**. The engine never
+sees those separators — it reads LINEAR MEMORY, where payloads sit at their
+declared addresses. The `TERN` magic sits in one 21-byte segment and the weights
+in the next; slicing the file across that boundary splices in eleven bytes of
+scaffolding (`41 98 ef c1 00 0b b5 c3 c9 03`).
 
-`scripts/rebuild-model-from-wasm.mjs` repacks the blob with that correction.
-It reads each section at the *measured* offsets and writes it at the *engine's*
-offsets, zero-filling the 192-byte gap. The vendored engine is never touched.
+`scripts/extract-model-from-wasm.mjs` now parses the section table, replays every
+data segment into a memory image, and extracts from that.
 
-#### How the 192 bytes were pinned
+#### How the address was found — not guessed
 
-`encode_embedding_int4` forces `scales[0] = 0.0` for the padding row and zeroes
-row 0's packed bytes. An **exact fp32 `0.0` followed by ~30,000 plausible
-positive floats** is not a coincidence, so it fixes the start of the scale array
-unambiguously: **5,860,064**, not the 5,860,256 that `compute_layout` computes.
+`format.rs::verify_sha256` panics unless the last 32 bytes are the SHA-256 of
+everything before them, so the model has a cryptographically-checkable length.
+Scanning memory for the address whose 7,492,280-byte body hashes to the 32 bytes
+that follow lands on **1,078,968**, and nothing else does. The header there
+parses perfectly: `max_seq_len=128`, and all ten `reserved` bytes zero, as
+`format.py` demands.
 
-Corroboration, all independent:
-- the file then totals exactly 7,492,088 — matching where the float data ends;
-- all twelve BitLinear scales become plausible **positive** values (several were
-  *negative* before, which is impossible for a weight scale);
-- every LayerNorm bias, both projection arrays, and `scales[0] == 0` check out;
-- the measured section boundaries coincide with an independent fp32-region
-  detector (`6,132,692` = W_out scale, `6,438,364` = fc2 scale, `6,590,444` =
-  layer-1 W_out scale — all exact).
+#### Two wrong answers this produced, both now undone
 
-#### What is ruled out, all empirically
+Worth recording, because both were confident and both were wrong:
 
-| Suspect | Verdict | Evidence |
-| --- | --- | --- |
-| `catalog.json` / base64 encoding | **ruled out** | The site's own WASM engine reproduces every `catalog.json` vector at cosine **1.0000002**, with zero dimensions differing by more than 0.01. `scripts/generate-wasm-fixture.mjs` builds the fixture from the engine directly, so the JSON is no longer even in the loop. |
-| Wrong model (d256 vs d384) | **was a bug, fixed** | Every HF `wenshutang/ternlight` checkpoint is d_model=256/n_heads=4/ffn=1024; the site uses 384/6/1536. Same 384-dim *output* width, which is why nothing failed loudly. |
-| Tokenizer | **ruled out** | Byte-identical to the wasm's embedded copy (sha256 `d241a60d…`), and both produce the same id sequence (`active=23`, identical prefix) for the product texts. |
-| Scalar vs SIMD matmul | **ruled out, by inspection** | Both are *exact integer* arithmetic — `i8 × i8 → i32` with no floating point — so they cannot disagree. (The old "bit-identical, max diff 0" check was measured on the host, where `#[cfg(not(target_arch = "wasm32"))]` compiles the scalar fallback and the SIMD path does not even exist. It compared scalar to scalar.) |
-| Section offsets | **was the bug, fixed** | The 192-byte misalignment above. |
-| Forward-pass math | **matches the reference** | `rust/src/engine/inference.rs` + `kernels.rs` follow `training/pack/unpack.py` step for step: parameterless LN → per-token AbsMax → round/clamp to int8 → i8 matmul → `+bias` in pre-rescale space → divide by `(w_scale * x_scale)`; GELU is the exact erf form; attention is `[T, n_heads, d_head]` with `1/√d_head`. Ternary codes unpack low-bits-first with `0b01→+1`, `0b10→−1`, exactly as the packer wrote them. |
+1. **The naive file slice.** The 11 inter-segment bytes land mid-model. They were
+   even mistaken for the header's `reserved` field — but `reserved` is zero in
+   memory, and the bytes that looked like it were scaffolding.
 
-#### Next step
+2. **"Correcting" for it with a 192-byte realignment.** I inferred the embedding
+   held 30,521 rows rather than 30,522, rebuilt the file to match, and got 12/12
+   plausible weight scales and a unit-length, input-dependent — but still
+   uncorrelated — embedding. **Those 192 bytes are row 0 of the embedding table,
+   which `encode_embedding_int4` emits as zeros via `q[0].zero_()`.** They are
+   part of the packed table. `compute_layout`'s arithmetic was right all along,
+   and the repack is deleted.
 
-The engine and the file now agree with the reference, so the remaining gap is
-in the **data the repack cannot verify**: the packed ternary blocks themselves
-have no self-describing structure, so nothing checks that the right 36,864
-bytes were copied. The one thing that would settle it is a stage-by-stage
-differential against a second implementation reading the *same* file:
-
-1. Port `unpack.py::UnpackedModel.forward` to JS (≈150 lines; the format is now
-   fully known) and run it against the rebuilt `model.bin`.
-2. If JS reproduces the WASM, the Rust engine diverges and each stage can be
-   bisected. If JS does *not* reproduce the WASM, the repacked bytes are wrong
-   and the 30521-row reading is the thing to re-examine.
-
-Until that lands, treat search as **unverified**. It is no longer input-blind,
-which is a real improvement, but it does not yet match the site.
+The lesson: a plausible, self-consistent story about a binary format is worth
+almost nothing until something independent checks it. Here that was the engine's
+own SHA-256, and it had been available the whole time.
 
 #### Traps worth remembering
 
+- **A binary artefact's own checksum is the cheapest oracle available.** Reach
+  for it before reasoning about offsets. It settled the file length, the start
+  address, and the layout in one step.
 - **"The extracted weights are byte-identical to the wasm" was circular.** The
-  comparison was `model.bin` against the very wasm slice it was cut from. It
-  proved a file equals itself. Never compare an artefact to its own source.
+  comparison was `model.bin` against the very slice it was cut from — a file
+  always equals itself that way.
 - **`ranking_scores_match_the_site` is not a parity test.** It scores the app's
   own query vector against the site's stored vectors, so it passes for *any*
   embedding. `native_reproduces_every_site_vector` is the only real check.
-- **The engine's `debug_assert` in `compute_layout` disagrees with the real
-  file by 192 bytes.** It is a `debug_assert`, so the WASM release build never
-  trips it. This is not noise — it was the whole bug. Treat it as a bug report.
-- **The WASM build carries no trailing SHA-256**, so `format.rs::verify_sha256`
-  cannot be satisfied by the extracted blob; the scripts recompute one.
-- Three separate probe scripts produced wrong answers from **the same class of
-  bug**: `subarray(32)` (stripping the header) combined with offsets that were
-  *already* header-inclusive, silently shifting every reading by 32 bytes. Pick
-  one coordinate system and never mix.
+- **Scalar-vs-SIMD was "ruled out" by a vacuous test.** It was measured on the
+  host, where `#[cfg(not(target_arch = "wasm32"))]` compiles the scalar fallback
+  and the SIMD path does not exist — so it compared scalar to scalar. Both are
+  exact integer arithmetic and cannot differ anyway.
+- **Three separate probes gave wrong answers from one repeated mistake:**
+  `subarray(32)` (stripping the header) combined with offsets that were already
+  header-inclusive, shifting every reading by 32 bytes. Pick one coordinate
+  system and never mix.
+- **`scripts/reference-forward.mjs`** is an independent port of
+  `unpack.py`'s forward pass to JS. It exists to answer "is it the data or the
+  engine?" and answered that the data was wrong. Keep it.
+
+#### Everything else is ruled out, empirically
+
+| Suspect | Verdict | Evidence |
+| --- | --- | --- |
+| `catalog.json` / base64 encoding | **ruled out** | The site's own WASM reproduces every `catalog.json` vector at cosine **1.0000002**, zero dimensions differing by more than 0.01. `scripts/generate-wasm-fixture.mjs` builds the fixture from the engine directly, so the JSON is not even in the loop. |
+| Wrong model (d256 vs d384) | **was a bug, fixed** | Every HF `wenshutang/ternlight` checkpoint is d_model=256/n_heads=4/ffn=1024; the site uses 384/6/1536. Same 384-dim *output* width, which is why nothing failed loudly. |
+| Tokenizer | **ruled out** | Byte-identical to the wasm's embedded copy (sha256 `d241a60d…`), and both emit the same id sequence (`active=23`, identical prefix) for the product texts. |
+| Forward-pass math | **ruled out** | `inference.rs` + `kernels.rs` follow `training/pack/unpack.py` step for step: parameterless LN → per-token AbsMax → round/clamp to int8 → i8 matmul → `+bias` in pre-rescale space → divide by `(w_scale * x_scale)`; GELU is the exact erf form; attention is `[T, n_heads, d_head]` with `1/√d_head`. Ternary codes unpack low-bits-first with `0b01→+1`, `0b10→−1`, exactly as the packer wrote them. |
+| Engine drift from upstream | **ruled out** | `scripts/check-vendor-clean.mjs` pins all five files byte-for-byte; same hashes at commit `c6d2c0a` (the published 0.1.1 build) and on `main`. |
+| Model extraction | **was the bug, fixed** | See above. |
 
 **`include_bytes!` is a compile-time failure, not a runtime one.** A missing
 `rust/src/assets/model.bin` produces an error pointing at the `include`, which
@@ -175,12 +170,15 @@ else. Native ARM takes the scalar path. Correct, just slower than the site.
 An `aarch64` implementation is the obvious next optimisation; see
 `docs/PERF.md`.
 
-**The parity tolerance cannot be zero.** WASM accumulates the matmul in 16
-lanes of `i32` SIMD; the scalar path accumulates one at a time. Different
-summation order over `f32`, so the two builds differ in the last bits. The
-test allows `1e-3` per dimension and demands cosine ≥ `0.9999`. That is far
-tighter than any semantic difference — two different models score below 0.9 —
-so it catches a model swap and ignores rounding.
+**The parity tolerance cannot be zero — but the difference turned out not to be
+rounding.** WASM accumulates the matmul in 16 lanes of `i32` SIMD while the
+native build uses a scalar loop, so the two *could* differ in the last bits. In
+practice they do not: `bitlinear_inner_simd` and its scalar twin are both exact
+integer arithmetic (`i8 × i8 → i32`, no floating point), and the measured
+difference is **exactly `0.000e+0` per dimension across all eight products**.
+The `1e-3` tolerance and cosine ≥ `0.9999` floor in `tests/parity.rs` are
+therefore slack, not a fudge — they are far tighter than any semantic difference
+(two different models score below 0.9), so they would still catch a model swap.
 
 **`db.js` has mixed line endings** (`\n`, `\r\n` and `\r\r\n` in the same
 file — 154/44/471 at time of writing). Plain text replaces silently fail to
@@ -279,12 +277,11 @@ anything is pushed.
 - [x] ~~Generate `android/`~~ — done via `flutter create`.
 - [x] ~~Compile the Rust crate~~ — it builds and runs.
 - [x] ~~Find the right model~~ — it was not the published checkpoint; see §3.
-- [x] ~~Run the parity test~~ — it runs, and correctly reports failure.
-- [x] ~~Fix the 192-byte section misalignment~~ — the app was returning the
-      same embedding for every input; see §3. Parity itself is still open.
-- [ ] **Close the parity gap.** `native_reproduces_every_site_vector` is the one
-      red test. See "Next step" in §3 — port `unpack.py`'s forward pass to JS and
-      bisect against the rebuilt `model.bin`.
+- [x] ~~Run the parity test~~ — it runs, and passes: 9/9, bit-exact against
+      the WASM. The bug was in extracting the model from the WASM, not in the
+      engine; see §3.
+- [x] ~~Fix the 192-byte section misalignment~~ — that diagnosis was wrong and
+      has been reverted. Those 192 bytes are embedding row 0.
 
 **Should do**
 

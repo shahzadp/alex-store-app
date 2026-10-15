@@ -105,7 +105,12 @@ pub const EMBEDDING_DIMS: usize = 384;
 /// CATALOG-GUIDE.md §4. Kept here so the parity harness can regenerate the
 /// site's vectors and prove we still agree.
 ///
-///     `${name}. ${category}. ${description}`.trim()
+/// Fenced as `text`: an indented doc block is a doctest, and `${name}` is a JS
+/// template, not Rust — rustdoc tried to compile it and failed the build.
+///
+/// ```text
+/// ${name}. ${category}. ${description}
+/// ```
 pub fn product_embedding_text(name: &str, category: &str, description: &str) -> String {
     format!("{}. {}. {}", name, category, description).trim().to_string()
 }
