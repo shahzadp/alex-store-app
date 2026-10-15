@@ -35,6 +35,7 @@ dependencies:
   # CatalogService rather than imported directly, so the service stays testable
   # without a plugin binding.
   path_provider: ^2.1.4
+  app_links: ^7.2.2
 
 dev_dependencies:
   flutter_test:

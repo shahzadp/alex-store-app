@@ -20,9 +20,23 @@ import '../models/catalog.dart';
 import 'search_engine.dart';
 import 'rust_search_engine.dart';
 
-/// Where the catalog lives. The site's own pages, not the Pages root, so a
-/// custom domain can be swapped in by changing one constant.
-const String kCatalogUrl = 'https://shahzadp.github.io/store/catalog.json';
+/// The storefront's own origin. The site's real pages, not the Pages root, so
+/// a custom domain can be swapped in by changing this one constant.
+///
+/// This is also the host the app declares for deep links
+/// (see `deep_link_service.dart`), so the browser link and the app handle the
+/// same URLs.
+const String kSiteUrl = 'https://shahzadp.github.io/store';
+
+/// Where the catalog lives.
+const String kCatalogUrl = '$kSiteUrl/catalog.json';
+
+/// The canonical web address for a product — the site's `product.html`.
+///
+/// The link is the same URL the website itself uses, so a link copied from the
+/// app opens the right page on the site and, on a device with the app, offers
+/// the app as a target. `product.js` reads this same `?slug=` parameter.
+String productPageUrl(String slug) => '$kSiteUrl/product.html?slug=$slug';
 
 /// Outcome of a refresh.
 enum CatalogSource { network, cache, none }

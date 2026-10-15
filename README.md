@@ -42,6 +42,7 @@ lib/
       rust_search_engine.dart   dart:ffi binding to the native engine
       whatsapp.dart             wa.me links, plus the two-toned button label
       launcher.dart             external URL opening
+      deep_link_service.dart    storefront links -> the matching product
     screens/                    home, shop, product, search
     widgets/                    product card/grid, product image
     theme.dart                  the site's palette, type scale, card metrics
@@ -64,7 +65,10 @@ scripts/
   bump-site-version.mjs         cache-buster bump + rebuild the site
   build-apk.mjs                 cargo -> jniLibs -> flutter build apk
 
-test/                           Dart tests: domain logic, theme, grid geometry
+test/                           Dart tests: domain, theme, grid, links
+docs/
+  APP-LINKS.md                  how to make links open the app automatically
+  assetlinks.json               the file to publish, and its warnings
 ```
 
 ## Building

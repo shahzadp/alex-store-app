@@ -1,0 +1,10 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android",
+      "package_name": "io.github.shahzadp.alex_store",
+      "sha256_cert_fingerprints": ["5C:E3:40:89:F1:72:40:D5:5A:45:19:A7:AD:DE:A8:FF:0B:0F:24:BD:28:76:D5:25:AA:1E:E5:EA:39:43:88:D2"]
+    }
+  }
+]

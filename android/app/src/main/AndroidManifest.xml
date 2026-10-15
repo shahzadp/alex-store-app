@@ -33,6 +33,26 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+
+            <!-- Opens the app from a storefront link, e.g. a product page shared
+                 from the website. `launchMode="singleTop"` above matters: a link
+                 tapped while the app is already running arrives here via
+                 onNewIntent instead of starting a second copy of the screen.
+
+                 autoVerify makes the link VERIFIED, which skips the "Open with"
+                 chooser entirely. That is not switched on yet — it needs
+                 https://shahzadp.github.io/.well-known/assetlinks.json, which
+                 cannot be served from a GitHub Pages project repo. Until then
+                 Android still offers the app in the chooser. See
+                 lib/src/services/deep_link_service.dart. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="https"/>
+                <data android:host="shahzadp.github.io"/>
+                <data android:pathPrefix="/store"/>
+            </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->

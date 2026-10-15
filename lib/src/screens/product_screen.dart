@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../catalog_scope.dart';
 import '../services/catalog_service.dart';
@@ -236,28 +237,77 @@ class _WhatsAppBar extends StatelessWidget {
         top: false,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
-          child: product.inStock
-              ? FilledButton(
-                  onPressed: () => openWhatsApp(
-                    context: context,
-                    number: catalog?.store.whatsapp ?? '',
-                    message: product.whatsappMessage(catalog?.store.name ?? 'Alex Store'),
+          child: Row(
+            children: [
+              // Secondary: copies the link. Narrow and quiet on purpose, so the
+              // order action stays the obvious one.
+              Expanded(
+                flex: 3,
+                child: product.inStock
+                    ? FilledButton(
+                        onPressed: () => openWhatsApp(
+                          context: context,
+                          number: catalog?.store.whatsapp ?? '',
+                          message: product.whatsappMessage(
+                              catalog?.store.name ?? 'Alex Store'),
+                        ),
+                        child: Text.rich(
+                          whatsappButtonLabel(
+                            'Order on ',
+                            after: ' — ${product.price.formatted}',
+                          ),
+                        ),
+                      )
+                    : _SoldOutButton(),
+              ),
+              const SizedBox(width: 10),
+              Tooltip(
+                message: 'Copy link',
+                child: OutlinedButton(
+                  onPressed: () => _copyLink(context),
+                  style: OutlinedButton.styleFrom(
+                    // Square, because it holds only an icon.
+                    padding: EdgeInsets.zero,
+                    minimumSize: const Size(48, 48),
                   ),
-                  child: Text.rich(
-                    whatsappButtonLabel(
-                      'Order on ',
-                      after: ' — ${product.price.formatted}',
-                    ),
-                  ),
-                )
-              : OutlinedButton(
-                  onPressed: null,
-                  child: Text(
-                    'Sold out',
-                    style: TextStyle(color: StoreTheme.soldOut.withValues(alpha: 1)),
-                  ),
+                  child: const Icon(Icons.link, size: 20),
                 ),
+              ),
+            ],
+          ),
         ),
+      ),
+    );
+  }
+
+  /// Copy the product's own web link to the clipboard.
+  ///
+  /// The link is the same URL the website uses, so it opens the product on the
+  /// site for anyone, and offers the app to anyone who has it installed.
+  Future<void> _copyLink(BuildContext context) async {
+    await Clipboard.setData(ClipboardData(text: productPageUrl(product.slug)));
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        const SnackBar(
+          content: Text('Link copied'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+  }
+}
+
+class _SoldOutButton extends StatelessWidget {
+  const _SoldOutButton();
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton(
+      onPressed: null,
+      child: Text(
+        'Sold out',
+        style: TextStyle(color: StoreTheme.soldOut.withValues(alpha: 1)),
       ),
     );
   }

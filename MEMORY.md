@@ -389,7 +389,44 @@ description, and "Is it available?". It used to append the entire long-form
 `details` block, which the site deliberately does not — an order message long
 enough to scroll is one the shopkeeper will not read.
 
-### The three-button navigation bar is ~48dp, and every hard-coded bottom padding was smaller
+### A GitHub Pages PROJECT repo cannot host the file Android needs for auto-redirect
+
+Opening a storefront link in the browser offers the app correctly, because the
+intent filter is declared. It does not open *automatically* — Android still asks
+which app to use.
+
+Android decides that from `https://<host>/.well-known/assetlinks.json`, fetched
+from the **domain root**. The storefront is a Pages *project* repo, so it is
+published under `/store/` and the root belongs to a *user* site repo
+(`shahzadp.github.io`) that does not exist:
+
+```
+$ curl -o /dev/null -w '%{http_code}' https://shahzadp.github.io/
+404
+```
+
+A project repo cannot place a file above its own path prefix, so there is no
+way to serve it from where the site actually lives. **The fix is a repo or a
+domain, not a code change**: create the user-site repo, or put a custom domain
+in front of the storefront. The `autoVerify="true"` flag is already in the
+manifest and needs no edit when that file appears.
+
+`docs/APP-LINKS.md` has the steps and `docs/assetlinks.json` the file.
+
+**Publishing the debug fingerprint is a security bug.** The release build signs
+with `signingConfigs.getByName("debug")` (`android/app/build.gradle.kts`), so
+`assetlinks.json` would name the debug keystore. Anyone can generate a debug
+keystore — that is what the toolchain does automatically — so any app signed
+with any debug keystore could claim these links. Create a real release keystore
+first.
+
+A subtler half of this: a link can arrive **before the catalog has loaded**,
+because the catalog is fetched on launch and the link does not wait. If the
+router only checks what is loaded, it lands on "no longer available" for a
+product that exists. `_openProductFromLink` in `main.dart` subscribes to the
+catalog stream with a 20s timeout instead.
+
+---
 
 Home, shop and search all ended with a hard-coded bottom pad of 28dp. Android's
 three-button nav bar is around 48dp, so the last product card or footer line sat
