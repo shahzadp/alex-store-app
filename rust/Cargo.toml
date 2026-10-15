@@ -22,14 +22,12 @@ crate-type = ["cdylib", "staticlib", "rlib"]
 # exactly one must be on. Making it a default means a plain `cargo build` and
 # `cargo test` work on a fresh clone with no flags at all.
 #
-# `frb` is deliberately NOT a default. It pulls in `flutter_rust_bridge`, whose
-# glue lives in a generated file that does not exist until codegen has run — so
-# a clean clone must still be able to run `cargo test` against the engine alone.
-# Pass it explicitly: `cargo build --features frb` (build-apk.mjs does).
 default = ["emb_int4"]
 
-# Added by flutter_rust_bridge_codegen for the Android build.
-frb = ["dep:flutter_rust_bridge"]
+# NOTE: there used to be an `frb` feature gating `flutter_rust_bridge`. It is
+# gone. The Dart boundary is now the hand-written C ABI in `src/ffi.rs`, so the
+# crate builds for every target with no codegen step and no extra dependency.
+# See MEMORY.md §6 for why.
 
 # ---------------------------------------------------------------------------
 # Embedding-format features.
@@ -81,8 +79,6 @@ sha2 = { version = "0.10", default-features = false }
 # erff/expf for GELU. Matches torch's F.gelu(approximate='none'), which is the
 # canonical formula the model was trained against.
 libm = { version = "0.2", default-features = false }
-
-flutter_rust_bridge = { version = "=2.13.0", optional = true }
 
 [dev-dependencies]
 # Only for tests/parity.rs, which reads the JSON fixture that

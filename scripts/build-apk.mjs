@@ -6,12 +6,11 @@
  * one that is missing rather than emitting a confusing cargo or gradle error.
  *
  * Pipeline:
- *   1. flutter_rust_bridge_codegen   Rust <-> Dart bindings
- *   2. cargo-ndk / rustup targets    libalex_store_native.so for each ABI
+ *   2. cargo (GNU host toolchain)        libalex_store_native.so per ABI
  *   3. flutter build apk             Dart AOT + packages the .so
  *
  * Android targets only. arm64 covers essentially every real device; armv7 and
- * x86_64 are buildable but see README — the engine currently has no NEON path,
+ * x86_64 are buildable but see README Ã¢â‚¬â€ the engine currently has no NEON path,
  * and armv7 is 32-bit.
  *
  * Usage:
@@ -22,12 +21,13 @@
  */
 
 import { spawnSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
-import { resolve, dirname } from 'node:path';
+import * as fs from 'node:fs';
+import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..');
+const REPO = ROOT;
 const RUST = resolve(ROOT, 'rust');
 
 const argv = process.argv.slice(2);
@@ -49,7 +49,7 @@ const ABI_TARGETS = {
 };
 const ABIS = value('--abis', 'android-arm64').split(',').map((s) => s.trim());
 
-// ── helpers ─────────────────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ helpers Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
 let step = 0;
 function heading(text) {
@@ -83,9 +83,9 @@ function need(cmd, hint) {
   process.exit(1);
 }
 
-// ── preflight ───────────────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ preflight Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
-console.log('Alex Store — Android build');
+console.log('Alex Store Ã¢â‚¬â€ Android build');
 console.log(`mode ${MODE}${SPLIT ? ', split per ABI' : ''}, ABIs: ${ABIS.join(', ')}`);
 
 need('flutter', 'Install Flutter: https://docs.flutter.dev/get-started/install');
@@ -95,19 +95,13 @@ need('cargo', 'Install Rust: https://rustup.rs');
 // failure, and the error message points at the include rather than at the
 // missing download.
 const modelBin = resolve(RUST, 'src', 'assets', 'model.bin');
-if (!existsSync(modelBin)) {
+if (!fs.existsSync(modelBin)) {
   console.error('\nMissing rust/src/assets/model.bin');
-  console.error('  Run:  node scripts/fetch-model.mjs');
+  console.error('  Run:  node scripts/extract-model-from-wasm.mjs');
   process.exit(1);
 }
 
-// ── 1. codegen ──────────────────────────────────────────────────────────────
-
-heading('Generating flutter_rust_bridge bindings');
-run('flutter', ['pub', 'get']);
-run('flutter_rust_bridge_codegen', ['generate']);
-
-// ── 2. native library ───────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ 1. native library Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
 heading('Building libalex_store_native.so');
 for (const abi of ABIS) {
@@ -119,30 +113,40 @@ for (const abi of ABIS) {
   console.log(`  ${abi} -> ${target}`);
 }
 
-// cargo-ndk drives cargo with the NDK clang wrappers for each target in one
-// pass, which is the supported way to cross-compile without setting
-// CARGO_TARGET_*_LINKER by hand.
-need('cargo-ndk', 'Install:  cargo install cargo-ndk');
+// No `flutter_rust_bridge_codegen` step, and no `cargo-ndk`. The bridge is
+// hand-written (rust/src/ffi.rs + lib/src/services/native_engine.dart), so
+// there is nothing to generate, and rust/.cargo/config.toml already points each
+// Android target at the NDK's clang, which is all cargo-ndk would have done.
+//
+// The host toolchain must be the GNU one: MSVC has no link.exe on this machine,
+// and cargo needs to build host build scripts even when the target is Android.
+const HOST_TOOLCHAIN = 'stable-x86_64-pc-windows-gnu';
+const JNI_DIR = resolve(REPO, 'android', 'app', 'src', 'main', 'jniLibs');
 
-run(
-  'cargo',
-  [
-    'ndk',
-    '-t',
-    ABIS.map((a) => ABI_TARGETS[a]).join(','),
-    '-o',
-    'android/jniLibs',
-    'build',
-    '--release',
-    '--features',
-    'frb,emb_int4',
-  ],
-  { cwd: RUST },
-);
+for (const abi of ABIS) {
+  const target = ABI_TARGETS[abi];
+  run(
+    'cargo',
+    [`+${HOST_TOOLCHAIN}`, 'build', '--release', '--target', target],
+    { cwd: RUST },
+  );
 
-// ── 3. APK ──────────────────────────────────────────────────────────────────
+  const outDir = resolve(RUST, 'target', target, 'release');
+  const built = resolve(outDir, 'libalex_store_native.so');
+  if (!fs.existsSync(built)) {
+    console.error(`\nExpected ${built} to exist after building ${target}.`);
+    process.exit(1);
+  }
+  const dest = resolve(JNI_DIR, abi);
+  fs.mkdirSync(dest, { recursive: true });
+  fs.copyFileSync(built, resolve(dest, 'libalex_store_native.so'));
+  console.log(`  copied to ${resolve(dest, 'libalex_store_native.so').slice(ROOT.length + 1)}`);
+}
+
+// Ã¢â€â‚¬Ã¢â€â‚¬ 2. APK Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
 heading('Building the APK');
+run('flutter', ['pub', 'get']);
 const flutterArgs = ['build', 'apk', '--target-platform', TARGET_PLATFORM, '--' + MODE];
 if (SPLIT) flutterArgs.push('--split-per-abi');
 if (!has('--debug')) flutterArgs.push('--release');
@@ -153,7 +157,7 @@ Done. Output:
   build/app/outputs/flutter-apk/     universal
   build/app/outputs/flutter-apk/*-*   split per ABI
 
-MEMORY.md §3: the APK is published as a GitHub *release* asset, never
+MEMORY.md Ã‚Â§3: the APK is published as a GitHub *release* asset, never
 committed to the repo. Use the \`latest\` tag so the URL never changes:
 
   gh release create v<version> build/app/outputs/flutter-apk/alex-store.apk

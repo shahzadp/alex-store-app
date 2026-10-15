@@ -13,7 +13,7 @@
 //! src/engine/   vendored from ternlight, byte-for-byte unmodified
 //! src/assets/   model.bin + tokenizer.json (include_bytes! targets)
 //! src/index.rs  ours: the product vector index and ranking
-//! src/api.rs    ours: the flutter_rust_bridge surface
+//! src/ffi.rs    ours: the C ABI Dart calls, hand-written
 //! ```
 //!
 //! # Why `#[path]` instead of a `mod` tree
@@ -92,8 +92,9 @@ pub mod inference;
 
 pub mod index;
 
-#[cfg(feature = "frb")]
-pub mod api;
+/// The C ABI that Dart calls. Hand-written rather than generated — see the
+/// module docs for why `flutter_rust_bridge` was dropped.
+pub mod ffi;
 
 /// Dimensions of a ternlight embedding. The site asserts this same number in
 /// `db.js` as SEARCH_DIMS, and `product_vectors` rows decode to exactly this

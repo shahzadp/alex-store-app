@@ -1,4 +1,4 @@
-# Alex Store — Android app
+# Alex Store â€” Android app
 
 The Flutter app for [shahzadp.github.io/store](https://shahzadp.github.io/store).
 
@@ -9,8 +9,8 @@ Reads the same `catalog.json` the website serves, and does semantic search
 
 ## Why the Rust part exists
 
-The website runs [ternlight](https://github.com/soycaporal/ternlight) — a
-1.58-bit BitNet-style sentence encoder — compiled to WASM, and ships the
+The website runs [ternlight](https://github.com/soycaporal/ternlight) â€” a
+1.58-bit BitNet-style sentence encoder â€” compiled to WASM, and ships the
 resulting product embeddings inside `catalog.sql`. Visitors embed only their own
 query.
 
@@ -19,9 +19,9 @@ out, and why this one:
 
 | Option | Verdict |
 | --- | --- |
-| Lexical search over `catalog.json` | Cheapest. MEMORY.md §6 calls it "the better trade" for eight products, and for eight products it may well be. But it cannot answer "something to drink out of". |
+| Lexical search over `catalog.json` | Cheapest. MEMORY.md Â§6 calls it "the better trade" for eight products, and for eight products it may well be. But it cannot answer "something to drink out of". |
 | A different, ONNX-runnable model | Works in Dart, but forces a **full reindex of the site** and gives up the model the vectors were built with. |
-| **The same ternlight engine, compiled natively** | Chosen. Same weights, same tokenizer, same forward pass — so the app ranks with exactly the vectors the site publishes, offline, with no model download at query time. |
+| **The same ternlight engine, compiled natively** | Chosen. Same weights, same tokenizer, same forward pass â€” so the app ranks with exactly the vectors the site publishes, offline, with no model download at query time. |
 
 ternlight is MIT and the engine is plain Rust; only its `#[wasm_bindgen]` surface
 is WebAssembly-specific. `rust/src/engine/` is vendored **byte-for-byte
@@ -51,18 +51,18 @@ rust/
   src/
     lib.rs                      module wiring + compile-time guards  (ours)
     index.rs                    product vector index and ranking     (ours)
-    api.rs                      the flutter_rust_bridge surface     (ours)
+    ffi.rs                       the C ABI Dart calls               (ours)
     engine/                     vendored from ternlight, unmodified
     assets/                     tokenizer.json (committed); model.bin (fetched)
 
 scripts/
-  fetch-model.mjs               download + SHA-256 verify the weights
+  extract-model-from-wasm.mjs    recover + SHA-256 verify the weights
   extract-site-vectors.mjs      pull vectors out of catalog.sql -> test fixture
   check-vectors-agree.mjs       catalog.json and catalog.sql must agree
   regen-catalog-json.mjs        run the site's own db.js in Node to re-export
   patch-store-catalog-json.mjs  one-shot patch of the site's db.js
   bump-site-version.mjs         cache-buster bump + rebuild the site
-  build-apk.mjs                 codegen -> cargo-ndk -> flutter build apk
+  build-apk.mjs                 cargo -> jniLibs -> flutter build apk
 
 test/                           Dart unit tests (pure Dart, no Flutter needed)
 ```
@@ -70,15 +70,19 @@ test/                           Dart unit tests (pure Dart, no Flutter needed)
 ## Building
 
 ```bash
-node scripts/fetch-model.mjs          # once; downloads + verifies SHA-256
-flutter pub get
-dart run flutter_rust_bridge_codegen generate   # needs: cargo install ...
+npm install                            # dev-only, for the scripts below
+node scripts/extract-model-from-wasm.mjs   # once; recovers + verifies SHA-256
 node scripts/build-apk.mjs
 ```
 
-Prerequisites: Flutter, Rust with the Android targets, Android SDK + NDK,
-`cargo install cargo-ndk`,
-`cargo install flutter_rust_bridge_codegen --version 2.13.0 --locked`.
+Prerequisites: Flutter, Rust **with the `stable-x86_64-pc-windows-gnu` host
+toolchain** and the `aarch64-linux-android` target *installed for that
+toolchain*, plus the Android SDK and NDK. `rustup` keeps targets per toolchain,
+so a target present under `msvc` does not help the GNU one.
+
+No codegen step and no `cargo install`. The Dart boundary is hand-written —
+`rust/src/ffi.rs` and `lib/src/services/native_engine.dart` are a matched pair.
+`flutter_rust_bridge` was tried first and abandoned; MEMORY.md §6 records why.
 
 Outputs land in `build/app/outputs/flutter-apk/`.
 
@@ -88,16 +92,16 @@ A fresh clone has no weights, and `cargo build` fails on `include_bytes!` until
 you fetch them:
 
 ```bash
-node scripts/fetch-model.mjs
+node scripts/extract-model-from-wasm.mjs
 ```
 
 It downloads `model-int4.bin` from HuggingFace and verifies it against the
 SHA-256 in `rust/src/assets/model-int4.bin.json`, which **is** committed. That
-manifest is the reason this is safe — a checksum catches a corrupted download,
+manifest is the reason this is safe â€” a checksum catches a corrupted download,
 which a committed blob could not.
 
 4.6 MB of binary in permanent git history for an artifact that is obtainable
-and verifiable is a poor trade, and the Store repo's MEMORY.md §3 makes the
+and verifiable is a poor trade, and the Store repo's MEMORY.md Â§3 makes the
 same argument about the APK. `tokenizer.json` (694 KB) *is* committed, because
 it is upstream source rather than a build artifact.
 
@@ -108,14 +112,14 @@ the vectors the **site** publishes, re-derives them from the same product text
 using the native engine, and asserts:
 
 - per-dimension agreement within `1e-3`;
-- cosine ≥ `0.9999` per product;
+- cosine â‰¥ `0.9999` per product;
 - identical **ranking order** for ten natural-language queries the index was
   never built from.
 
 The tolerance is not zero and cannot be: the WASM build accumulates the BitLinear
 matmul in 16-lane `i32` SIMD, the native build walks ternlight's scalar
 fallback, so the summation order differs. The bound is far tighter than any
-semantic difference — two different models score cosine < 0.9 — so it catches a
+semantic difference â€” two different models score cosine < 0.9 â€” so it catches a
 model swap or tokenizer change, and ignores rounding.
 
 Regenerate the fixture after any catalog or model change:
@@ -126,8 +130,8 @@ node scripts/extract-site-vectors.mjs
 
 ## The site side
 
-`catalog.json` did not used to carry vectors — they lived only in `catalog.sql`,
-and MEMORY.md §6 left "decide app search" open partly because of it. They are
+`catalog.json` did not used to carry vectors â€” they lived only in `catalog.sql`,
+and MEMORY.md Â§6 left "decide app search" open partly because of it. They are
 now included, as base64 on each product, via
 `scripts/patch-store-catalog-json.mjs`.
 
@@ -142,7 +146,7 @@ Cost: `catalog.json` went from 6.9 KB to 22.9 KB.
 `scripts/regen-catalog-json.mjs` regenerates it by **running the site's real
 `db.js`** under Node with `fetch` and `localStorage` stubbed, so the file is
 byte-identical to what the admin panel's *Download catalog.json* produces.
-Reimplementing the export here would break the guarantee in CATALOG-GUIDE.md §8
+Reimplementing the export here would break the guarantee in CATALOG-GUIDE.md Â§8
 that the two catalog files cannot disagree.
 
 ## Rules this app inherits from the store
@@ -165,7 +169,7 @@ These are not preferences; breaking them breaks the shop.
 
 ## Search failure is never silent
 
-This is the failure MEMORY.md §4 spends most of its length on: an incomplete
+This is the failure MEMORY.md Â§4 spends most of its length on: an incomplete
 index makes *every* search return nothing, site-wide, with nothing logged.
 `SearchProblem` gives each cause its own message:
 
@@ -188,17 +192,17 @@ rather than proceeding, and checks `search_model` from the catalog against
   the site. A `core::arch::aarch64` implementation is the obvious next
   optimisation. See `docs/PERF.md`.
 - **`android/` is not generated yet.** It comes from `flutter create`.
-- **No release, no `apkUrl`.** MEMORY.md §6 keeps `apkUrl` empty until a
-  `v1.0` release exists, which is correct — it renders an inert control rather
+- **No release, no `apkUrl`.** MEMORY.md Â§6 keeps `apkUrl` empty until a
+  `v1.0` release exists, which is correct â€” it renders an inert control rather
   than a link to nothing.
 - **Nothing has run on a device.** Every claim above is from unit tests and
   from code review.
 
 ## Third party
 
-- [ternlight](https://github.com/soycaporal/ternlight) — MIT. Engine in
+- [ternlight](https://github.com/soycaporal/ternlight) â€” MIT. Engine in
   `rust/src/engine/`, weights from
   [`wenshutang/ternlight`](https://huggingface.co/wenshutang/ternlight) (MIT).
   See `THIRD_PARTY_TERNLIGHT_LICENSE`.
-- `flutter_rust_bridge` — MIT.
-- `url_launcher`, `path_provider` — BSD-3.
+- `flutter_rust_bridge` â€” MIT.
+- `url_launcher`, `path_provider` â€” BSD-3.

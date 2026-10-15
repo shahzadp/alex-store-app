@@ -17,15 +17,15 @@ dependencies:
   flutter:
     sdk: flutter
 
-  # Native ternlight engine. The crate lives in rust/; this is the Dart half
-  # of the generated bindings and the loader that dlopen()s the .so.
+  # FFI primitives for the native ternlight engine: calloc/free for the
+  # buffers Dart hands to Rust. The boundary itself is hand-written in
+  # lib/src/services/native_engine.dart against rust/src/ffi.rs.
   #
-  # No `=` here: that is Cargo's exact-pin syntax and pub rejects it. This is a
-  # caret constraint, so `^2.14.0` would also satisfy it — and a codegen
-  # mismatch between the Dart bindings and rust/Cargo.toml fails at build time,
-  # not at resolve time. The exact version is pinned by pubspec.lock, which is
-  # committed for exactly this reason.
-  flutter_rust_bridge: "2.13.0"
+  # flutter_rust_bridge used to be here. It was removed because its codegen
+  # step needs `cargo expand`, hence a nightly toolchain, which this
+  # environment cannot provide — see MEMORY.md §6. `ffi` is the whole of what
+  # the hand-written boundary needs.
+  ffi: ^2.1.0
 
   # Opens wa.me links. There is no in-app checkout (MEMORY.md §3), so this is
   # the only external navigation in the app.
@@ -41,15 +41,13 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^5.0.0
 
-# NOTE: `flutter_rust_bridge_codegen` is deliberately NOT a dev_dependency.
-# It does not exist on pub.dev — FRB v2 ships the generator as a Rust binary:
+# NOTE: there is no codegen step any more.
 #
-#     cargo install flutter_rust_bridge_codegen --version 2.13.0 --locked
-#
-# Which needs a host linker, which this machine does not have without the GNU
-# toolchain. See README.md "Toolchain". Its version must match both
-# `flutter_rust_bridge` above and `flutter_rust_bridge` in rust/Cargo.toml; a
-# mismatch produces bindings that compile against the wrong runtime.
+# The bridge used to be flutter_rust_bridge, whose generator is a Rust binary
+# needing `cargo install flutter_rust_bridge_codegen`. That in turn shells out
+# to `cargo expand`, which needs a nightly toolchain this environment cannot
+# provide. The boundary is now hand-written and paired: rust/src/ffi.rs and
+# lib/src/services/native_engine.dart must be changed together.
 
 flutter:
   uses-material-design: true
