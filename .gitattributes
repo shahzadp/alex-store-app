@@ -1,0 +1,53 @@
+# Line endings and file types.
+#
+# WHY THIS EXISTS
+# The Store repo already has a scar from this: MEMORY.md §4 records that
+# "PowerShell Set-Content -Encoding utf8 writes a BOM that makes JSON.parse fail
+# on an invisible character". Git silently converting LF to CRLF in the working
+# tree, and CRLF back to LF in the repository, produces the same class of
+# problem — a diff that shows every line as changed, and a file whose bytes
+# differ between machines.
+#
+# So: LF in the repository and in the working tree, on every platform, for
+# every text file. CRLF is a Windows-only convention that git should not be
+# making decisions about on your behalf.
+
+* text=auto eol=lf
+
+# Explicitly LF, in case a future editor disagrees with the rule above.
+*.dart   text eol=lf
+*.rs     text eol=lf
+*.kt     text eol=lf
+*.kts    text eol=lf
+*.mjs    text eol=lf
+*.md     text eol=lf
+*.toml   text eol=lf
+*.yaml   text eol=lf
+*.yml    text eol=lf
+*.json   text eol=lf
+*.xml    text eol=lf
+*.css    text eol=lf
+*.html   text eol=lf
+*.txt    text eol=lf
+*.lock   text eol=lf
+*.properties text eol=lf
+
+# Binary. Never let git try to normalise these, and never let a merge try to
+# resolve them as text — a conflicted APK is worse than a rejected merge.
+*.png    binary
+*.jpg    binary
+*.jpeg   binary
+*.gif    binary
+*.ico    binary
+*.webp   binary
+*.bin    binary
+*.wasm   binary
+*.so     binary
+*.aar    binary
+*.apk    binary
+
+# GitHub language statistics ignore vendored and generated trees, so the repo
+# does not report the app as "mostly vendored Rust" or "mostly generated Dart".
+rust/src/engine/** linguist-vendored
+lib/src/api/**      linguist-generated
+rust/src/frb_generated.rs linguist-generated

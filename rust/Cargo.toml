@@ -1,0 +1,78 @@
+[package]
+name        = "alex_store_native"
+version     = "0.1.0"
+edition     = "2021"
+rust-version = "1.75"
+publish     = false
+license     = "MIT"
+description = "Native ternlight sentence embeddings for the Alex Store Android app, bridged to Dart with flutter_rust_bridge."
+
+[lib]
+name = "alex_store_native"
+#  cdylib   - what flutter_rust_bridge's Dart FFI dlopen()s on the device
+#  staticlib - what the Android Gradle/CMake layer links when it builds the .so
+#  rlib     - so `cargo test` can exercise the engine and the parity harness
+#              on the host without a device or an emulator
+crate-type = ["cdylib", "staticlib", "rlib"]
+
+[features]
+# `default` stays empty so that `cargo test` compiles the engine and the parity
+# harness without dragging in flutter_rust_bridge and its codegen toolchain.
+default = []
+
+# Added by flutter_rust_bridge_codegen for the Android build.
+frb = ["dep:flutter_rust_bridge"]
+
+# ---------------------------------------------------------------------------
+# Embedding-format features.
+#
+# These are NOT ours - `src/engine/format.rs` (vendored from ternlight)
+# selects `BUILD_EMBEDDING_FORMAT` with #[cfg(feature = ...)], and the kernels
+# dispatch on the same flags. Exactly one must be on or the crate will not
+# compile; `src/lib.rs` reproduces ternlight's own compile_error! guard.
+#
+# `emb_int4` is the tier `@ternlight/base@0.1.1` ships and the one the site's
+# precomputed product_vectors were built with, so it is the default here too.
+# A `.bin` packed for one format CANNOT be read by an engine built for another,
+# which makes changing this flag a full-reindex event on both the site and here.
+# ---------------------------------------------------------------------------
+emb_int4 = []
+
+# Declared so that `cargo build --features emb_fp32` produces a clear
+# "two formats enabled" error rather than "no formats enabled".
+emb_fp32 = []
+emb_int8 = []
+emb_ternary = []
+
+[dependencies]
+# HuggingFace `tokenizers`. `fancy-regex` replaces the default `onig` because
+# onig links a C library, and we cross-compile to Android without wanting a C
+# toolchain in the Rust build. In practice the regex type is never touched:
+# the committed tokenizer.json uses BertNormalizer + BertPreTokenizer, neither
+# of which compiles a pattern - it only does Unicode category tests. So this
+# dep is here to satisfy the crate's API, not because we run regex.
+tokenizers = { version = "0.19", default-features = false, features = ["fancy-regex"] }
+
+# SHA256 over the trailing 32 bytes of model.bin (format.rs).
+sha2 = { version = "0.10", default-features = false }
+
+# erff/expf for GELU. Matches torch's F.gelu(approximate='none'), which is the
+# canonical formula the model was trained against.
+libm = { version = "0.2", default-features = false }
+
+flutter_rust_bridge = { version = "=2.13.0", optional = true }
+
+[dev-dependencies]
+# Only for tests/parity.rs, which reads the JSON fixture that
+# scripts/extract-site-vectors.mjs writes out of the site's catalog.sql.
+serde_json = "1"
+
+[profile.release]
+# Android is the only shipped target, so optimise hard for it. `strip` matters:
+# the engine binary is dominated by model.bin, which lives in .rodata, and
+# symbol tables would add to that.
+opt-level     = 3
+lto           = "thin"
+codegen-units = 1
+panic         = "abort"
+strip         = "symbols"

@@ -1,0 +1,28 @@
+# flutter_rust_bridge configuration.
+#
+# The generator itself is NOT a pub dependency. `flutter_rust_bridge_codegen`
+# does not exist on pub.dev — FRB v2 ships it as a Rust binary:
+#
+#     cargo install flutter_rust_bridge_codegen --version 2.13.0 --locked
+#     flutter_rust_bridge_codegen generate
+#
+# That version must equal `flutter_rust_bridge` in pubspec.yaml AND
+# `flutter_rust_bridge` in rust/Cargo.toml. A mismatch produces bindings that
+# compile against the wrong runtime, which is a confusing failure rather than a
+# clean one.
+
+[General]
+# The hand-written bridge surface. `lib.rs` includes this only under
+# `--features frb`; codegen passes that.
+rust_input = "rust/src/api.rs"
+rust_root  = "rust"
+
+# Where the Dart half lands. Imported by rust_search_engine.dart as
+# `../api/api.dart`, and committed to git — generated code that is not in
+# version control gets regenerated at a different version on someone else's
+# machine and the diff is unreviewable.
+dart_output = "lib/src/api"
+
+# One crate, one library name. The FFI loader looks for exactly this.
+[General.crate_name]
+rust_crate = "alex_store_native"

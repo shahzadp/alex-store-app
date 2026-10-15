@@ -1,0 +1,14 @@
+{
+  "format_version": 1,
+  "embedding_format": "int4",
+  "weights_format": "ternary",
+  "bin_path": "model-int4.bin",
+  "bin_bytes": 4839512,
+  "bin_sha256": "07d8cfdba5773ad69a3fe6164b6c964e87b2368cc3ad6c2bdaf8566f2e5b6c98",
+  "packed_at_iso": "2026-06-03T05:36:16.861213+00:00",
+  "training_run_id": "qat-resume-ep10-ep40",
+  "code_commit": "dff16b125fe10644b2537d746a4c1f9e177795da",
+  "source_ckpt_path": "training/distill/runs/qat-resume-ep10-22ed6bc/checkpoint_ep40.pt",
+  "eval_scorecard_path": null,
+  "source_data_manifest": null
+}

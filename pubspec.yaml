@@ -1,0 +1,59 @@
+name: alex_store
+description: The Alex Store Android app. Reads the same catalog.json the website serves, with on-device semantic search from a native ternlight engine.
+publish_to: "none"
+
+# The app version and the versionCode are what appear in the About screen of
+# Android and in the Play/F-Droid listing. Keep them in step with the release
+# tag in the repo — MEMORY.md §6 uses the `latest` tag so the APK URL never
+# changes, which means the version here is the only place a user-visible
+# version number lives.
+version: 0.1.0+1
+
+environment:
+  sdk: ">=3.5.0 <4.0.0"
+  flutter: ">=3.24.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Native ternlight engine. The crate lives in rust/; this is the Dart half
+  # of the generated bindings and the loader that dlopen()s the .so.
+  #
+  # No `=` here: that is Cargo's exact-pin syntax and pub rejects it. This is a
+  # caret constraint, so `^2.14.0` would also satisfy it — and a codegen
+  # mismatch between the Dart bindings and rust/Cargo.toml fails at build time,
+  # not at resolve time. The exact version is pinned by pubspec.lock, which is
+  # committed for exactly this reason.
+  flutter_rust_bridge: "2.13.0"
+
+  # Opens wa.me links. There is no in-app checkout (MEMORY.md §3), so this is
+  # the only external navigation in the app.
+  url_launcher: ^6.3.0
+
+  # Read/write directory for the offline catalog copy. Injected into
+  # CatalogService rather than imported directly, so the service stays testable
+  # without a plugin binding.
+  path_provider: ^2.1.4
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+# NOTE: `flutter_rust_bridge_codegen` is deliberately NOT a dev_dependency.
+# It does not exist on pub.dev — FRB v2 ships the generator as a Rust binary:
+#
+#     cargo install flutter_rust_bridge_codegen --version 2.13.0 --locked
+#
+# Which needs a host linker, which this machine does not have without the GNU
+# toolchain. See README.md "Toolchain". Its version must match both
+# `flutter_rust_bridge` above and `flutter_rust_bridge` in rust/Cargo.toml; a
+# mismatch produces bindings that compile against the wrong runtime.
+
+flutter:
+  uses-material-design: true
+
+# Model weights are compiled into the native library by include_bytes!, not
+# shipped as a Flutter asset. They are 4.6 MB of binary in an APK that is
+# already large; putting them in assets/ as well would double them.

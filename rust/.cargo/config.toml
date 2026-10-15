@@ -1,0 +1,58 @@
+# Cross-compilation setup for the Android targets.
+#
+# # WHY THIS FILE EXISTS
+#
+# Two constraints on this machine shaped it:
+#
+#  1. **The Android SDK path must not contain spaces.** Flutter refuses one,
+#     and the NDK's toolchain breaks on them. The SDK lives at
+#     `D:\GitHub Projects\DoL-by-Alex\devTools\androidsdk`, so
+#     `D:\android-sdk` is a directory junction onto it — `mklink /J`, zero
+#     copy, and every path below is space-free.
+#
+#  2. **There is no MSVC build tools**, so nothing can link against a Windows
+#     system linker here — not even a cross-compile. That is the non-obvious
+#     part: `cargo build --target aarch64-linux-android` still has to *build and
+#     link build scripts for the host*, and those are Windows binaries. Without
+#     a host linker the build dies on `proc-macro2` before it ever reaches the
+#     target.
+#
+#     So a host toolchain is mandatory even for Android-only work:
+#
+#       rustup toolchain install stable-x86_64-pc-windows-gnu
+#
+#     and thereafter `cargo +stable-x86_64-pc-windows-gnu ...` (or set it as the
+#     default). With that in place the *target* linker below is the NDK's clang
+#     and the MSVC toolchain is irrelevant.
+#
+# The host tests in `cargo test` DO need a linker and therefore DO need
+# `rustup toolchain install stable-x86_64-pc-windows-gnu`. The wasm parity
+# harness exists partly to avoid that dependency — see tests/parity.rs.
+
+[target.aarch64-linux-android]
+# The trailing `21` is the API level. Android 5.0. Flutter's own minSdk for
+# this release is 21; going lower would drop support for devices that still
+# matter in this market, and Flutter would refuse the APK anyway.
+linker = "D:\\android-sdk\\ndk\\28.2.13676358\\toolchains\\llvm\\prebuilt\\windows-x86_64\\bin\\aarch64-linux-android21-clang.cmd"
+
+[target.x86_64-linux-android]
+# x86_64 only exists for emulators; there is no device ABI that uses it.
+linker = "D:\\android-sdk\\ndk\\28.2.13676358\\toolchains\\llvm\\prebuilt\\windows-x86_64\\bin\\x86_64-linux-android21-clang.cmd"
+
+[target.armv7-linux-androideabi]
+# Not built by default — see README. 32-bit ARM is a vanishing share of
+# devices and every 32-bit build adds ~5 MB to the APK for the same weights.
+linker = "D:\\android-sdk\\ndk\\28.2.13676358\\toolchains\\llvm\\prebuilt\\windows-x86_64\\bin\\armv7a-linux-androideabi21-clang.cmd"
+
+# ── wasm32 ──────────────────────────────────────────────────────────────────
+#
+# Not a shipped target. Used by the parity harness: wasm32 needs no system
+# linker at all (rust-lld is bundled), so `embed()` can be executed in Node on a
+# machine that cannot link a Windows binary. That is what makes the numerics
+# verifiable here.
+[target.wasm32-unknown-unknown]
+# ternlight's BitLinear matmul uses explicit WASM SIMD intrinsics and the
+# vendored lib.rs has a compile_error! for wasm32 without it. The scalar
+# fallback in kernels.rs is gated on `not(target_arch = "wasm32")`, so this is
+# not optional — without +simd128 the crate does not build for wasm32 at all.
+rustflags = ["-C", "target-feature=+simd128"]

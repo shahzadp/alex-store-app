@@ -1,0 +1,89 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Generated build output. None of this belongs in the repository; all of it is
+# reproducible from the sources plus the toolchain.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Dart / Flutter
+.dart_tool/
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# Android
+android/.gradle/
+android/app/build/
+android/local.properties        # machine-specific: SDK and Flutter paths
+android/key.properties         # signing secrets
+*.jks
+*.keystore
+
+# Rust
+rust/target/
+
+# NOTE: `rust/.cargo/` is deliberately NOT ignored. That directory holds
+# config.toml, which is real project configuration — the NDK linkers and the
+# wasm32 +simd128 flag. Ignoring it is an easy mistake because rustup also
+# writes a `.cargo` directory elsewhere; they are unrelated.
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Editors and OS
+# ─────────────────────────────────────────────────────────────────────────────
+
+.idea/
+.vscode/
+*.iml
+*.iws
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Model weights — fetched, not committed
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# `rust/src/assets/model.bin` (4.6 MB) is a BUILD ARTIFACT and is not
+# committed. Get it with:
+#
+#     node scripts/fetch-model.mjs
+#
+# which downloads it from HuggingFace and verifies it against the SHA-256 in
+# `model-int4.bin.json` (that manifest IS committed, so `--check` works on a
+# clean clone).
+#
+# Why it is not committed, when the rest of the vendored code is:
+#
+#   - **Size, and it is permanent.** Git history never forgets. The Store
+#     repo's MEMORY.md §3 makes this exact argument about the APK: "an APK
+#     committed to the repo is permanent in git history. Releases assets are
+#     outside the tree, so they cost nothing."
+#   - **Upstream does not commit it either.** ternlight's own `engine/assets/`
+#     holds `.gitkeep` and `tokenizer.json`, and the README says model.bin is a
+#     "release artifact, not committed". Matching upstream's convention is what
+#     makes a future re-vendor a clean operation.
+#   - **It is verifiable.** A checksum in the repo is stronger than a blob in
+#     the repo — it also catches a corrupted *download*, which committing
+#     cannot.
+#
+# `rust/src/assets/tokenizer.json` (694 KB) IS committed. It is upstream
+# *source*, not an artifact: ternlight keeps it in git, and it is part of what
+# "vendored byte-for-byte" means. The line is source vs artifact, not size.
+#
+rust/src/assets/model.bin
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Lockfiles ARE committed
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# The convention for libraries is to ignore pubspec.lock and Cargo.lock; this is
+# an application, and both ecosystems recommend committing them so every build
+# resolves identical dependency versions. For this project it is not a nicety:
+# `flutter_rust_bridge`'s Dart version, the `flutter_rust_bridge_codegen` Rust
+# version, and `flutter_rust_bridge` in rust/Cargo.toml must all agree, and a
+# drift between them produces bindings that compile against the wrong runtime.
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Secrets
+# ─────────────────────────────────────────────────────────────────────────────
+
+*.env
+.env.*
