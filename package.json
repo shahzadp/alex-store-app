@@ -1,0 +1,16 @@
+﻿{
+  "name": "alex-store-app-fixtures",
+  "private": true,
+  "type": "module",
+  "description": "Dev-only tooling for the Alex Store app. Nothing here ships in the APK; the Dart and Rust builds do not read it.",
+  "scripts": {
+    "fixtures": "node scripts/generate-wasm-fixture.mjs",
+    "fixtures:check": "node scripts/generate-wasm-fixture.mjs --check",
+    "model": "node scripts/rebuild-model-from-wasm.mjs",
+    "model:check": "node scripts/rebuild-model-from-wasm.mjs --check",
+    "vendor:check": "node scripts/check-vendor-clean.mjs"
+  },
+  "devDependencies": {
+    "@ternlight/base": "0.1.1"
+  }
+}

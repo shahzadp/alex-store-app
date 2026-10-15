@@ -87,3 +87,8 @@ rust/src/assets/model.bin
 
 *.env
 .env.*
+# npm is a dev-time convenience only, for the fixture and model scripts
+# (scripts/generate-wasm-fixture.mjs, scripts/rebuild-model-from-wasm.mjs).
+# Neither the Dart nor the Rust build reads node_modules. package.json and
+# package-lock.json ARE committed so those scripts stay reproducible.
+node_modules/
