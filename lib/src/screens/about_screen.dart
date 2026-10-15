@@ -7,14 +7,14 @@ import '../theme.dart';
 
 /// About the store.
 ///
-/// MEMORY.md Â§3: "The About page states nothing that isn't true of how the
-/// store actually works â€” no invented founding year, sourcing story or
+/// MEMORY.md §3: "The About page states nothing that isn't true of how the
+/// store actually works — no invented founding year, sourcing story or
 /// location. ... the copy will not invent them."
 ///
 /// So this page describes mechanics the shopper can verify from the app
-/// itself â€” how ordering works, what the prices mean, what search does with
-/// their words â€” and says nothing about who runs the shop or where the goods
-/// come from. Those facts are not known yet (MEMORY.md Â§6, open work), and a
+/// itself — how ordering works, what the prices mean, what search does with
+/// their words — and says nothing about who runs the shop or where the goods
+/// come from. Those facts are not known yet (MEMORY.md §6, open work), and a
 /// placeholder that reads as a claim is worse than an absence.
 class AboutScreen extends StatelessWidget {
   const AboutScreen({super.key});
@@ -38,7 +38,7 @@ class AboutScreen extends StatelessWidget {
                 ? 'Ordering is arranged over WhatsApp.'
                 : 'Message the shop on WhatsApp at +${catalog.store.whatsapp} and the order '
                     'is arranged from there. There is no basket and no checkout in this app '
-                    'because there is nothing to check out â€” the shop confirms price, '
+                    'because there is nothing to check out — the shop confirms price, '
                     'availability and delivery with you directly.',
           ),
           _Block(
@@ -52,7 +52,7 @@ class AboutScreen extends StatelessWidget {
               body: 'Free delivery on orders over '
                   '${catalog.store.freeDeliveryOver.formatted}. '
                   'The delivery window is agreed with you over WhatsApp when you order, '
-                  'rather than promised here â€” a stated timeframe that is not kept is worse '
+                  'rather than promised here — a stated timeframe that is not kept is worse '
                   'than one that is agreed.',
             ),
           _Block(

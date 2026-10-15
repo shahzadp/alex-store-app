@@ -1,4 +1,4 @@
-# MEMORY Ã¢â‚¬â€ Alex Store app
+# MEMORY — Alex Store app
 
 Working notes for whoever picks this up next, including an agent with no prior
 context. Architecture is in `README.md`.
@@ -15,8 +15,8 @@ self-contained.
 - Reads the site's `catalog.json` on every launch; caches a copy for offline.
 - Search: ternlight `base@0.1.1`, **compiled to native Rust** and called over
   `dart:ffi`, ranking the site's published vectors. The boundary is
-  hand-written â€” `rust/src/ffi.rs` and
-  `lib/src/services/native_engine.dart` are a matched pair; see Â§6 for why
+  hand-written: `rust/src/ffi.rs` and
+  `lib/src/services/native_engine.dart` are a matched pair; see section 6 for why
   `flutter_rust_bridge` was dropped.
 - The site's `catalog.json` now carries those vectors. It did not until
   `scripts/patch-store-catalog-json.mjs` ran.
@@ -25,14 +25,14 @@ self-contained.
   emulator.
 - **Search now matches the site.** The native engine reproduces the WASM's
   vectors bit-exactly (worst per-dimension difference `0.000e+0`), so the app's
-  rankings are the site's rankings. See Ã‚Â§3.
+  rankings are the site's rankings. See §3.
 
 ---
 
 ## 2. The one decision that shapes everything
 
 The website runs ternlight as WebAssembly. Dart cannot host a WASM runtime.
-Rather than switching models Ã¢â‚¬â€ which would force a full reindex of the site Ã¢â‚¬â€
+Rather than switching models — which would force a full reindex of the site —
 the app compiles **the same engine to native code** and runs the same weights
 on the phone.
 
@@ -51,7 +51,7 @@ true.
 ### Parity: SOLVED. The bug was in how the model was extracted, not in the engine.
 
 `cargo test --test parity` is **9/9 green**, and the native engine reproduces
-the WASM's vectors **bit-exactly** Ã¢â‚¬â€ worst per-dimension difference across all
+the WASM's vectors **bit-exactly** — worst per-dimension difference across all
 eight products is `0.000e+0`, not merely inside the 0.001 tolerance.
 
 #### The actual bug: a WASM file is not a WASM memory
@@ -68,7 +68,7 @@ A WASM data segment is stored in the FILE as
 ```
 
 so **consecutive segments are separated by their own headers**. The engine never
-sees those separators Ã¢â‚¬â€ it reads LINEAR MEMORY, where payloads sit at their
+sees those separators — it reads LINEAR MEMORY, where payloads sit at their
 declared addresses. The `TERN` magic sits in one 21-byte segment and the weights
 in the next; slicing the file across that boundary splices in eleven bytes of
 scaffolding (`41 98 ef c1 00 0b b5 c3 c9 03`).
@@ -76,7 +76,7 @@ scaffolding (`41 98 ef c1 00 0b b5 c3 c9 03`).
 `scripts/extract-model-from-wasm.mjs` now parses the section table, replays every
 data segment into a memory image, and extracts from that.
 
-#### How the address was found Ã¢â‚¬â€ not guessed
+#### How the address was found — not guessed
 
 `format.rs::verify_sha256` panics unless the last 32 bytes are the SHA-256 of
 everything before them, so the model has a cryptographically-checkable length.
@@ -90,13 +90,13 @@ parses perfectly: `max_seq_len=128`, and all ten `reserved` bytes zero, as
 Worth recording, because both were confident and both were wrong:
 
 1. **The naive file slice.** The 11 inter-segment bytes land mid-model. They were
-   even mistaken for the header's `reserved` field Ã¢â‚¬â€ but `reserved` is zero in
+   even mistaken for the header's `reserved` field — but `reserved` is zero in
    memory, and the bytes that looked like it were scaffolding.
 
 2. **"Correcting" for it with a 192-byte realignment.** I inferred the embedding
    held 30,521 rows rather than 30,522, rebuilt the file to match, and got 12/12
-   plausible weight scales and a unit-length, input-dependent Ã¢â‚¬â€ but still
-   uncorrelated Ã¢â‚¬â€ embedding. **Those 192 bytes are row 0 of the embedding table,
+   plausible weight scales and a unit-length, input-dependent — but still
+   uncorrelated — embedding. **Those 192 bytes are row 0 of the embedding table,
    which `encode_embedding_int4` emits as zeros via `q[0].zero_()`.** They are
    part of the packed table. `compute_layout`'s arithmetic was right all along,
    and the repack is deleted.
@@ -111,14 +111,14 @@ own SHA-256, and it had been available the whole time.
   for it before reasoning about offsets. It settled the file length, the start
   address, and the layout in one step.
 - **"The extracted weights are byte-identical to the wasm" was circular.** The
-  comparison was `model.bin` against the very slice it was cut from Ã¢â‚¬â€ a file
+  comparison was `model.bin` against the very slice it was cut from — a file
   always equals itself that way.
 - **`ranking_scores_match_the_site` is not a parity test.** It scores the app's
   own query vector against the site's stored vectors, so it passes for *any*
   embedding. `native_reproduces_every_site_vector` is the only real check.
 - **Scalar-vs-SIMD was "ruled out" by a vacuous test.** It was measured on the
   host, where `#[cfg(not(target_arch = "wasm32"))]` compiles the scalar fallback
-  and the SIMD path does not exist Ã¢â‚¬â€ so it compared scalar to scalar. Both are
+  and the SIMD path does not exist — so it compared scalar to scalar. Both are
   exact integer arithmetic and cannot differ anyway.
 - **Three separate probes gave wrong answers from one repeated mistake:**
   `subarray(32)` (stripping the header) combined with offsets that were already
@@ -134,8 +134,8 @@ own SHA-256, and it had been available the whole time.
 | --- | --- | --- |
 | `catalog.json` / base64 encoding | **ruled out** | The site's own WASM reproduces every `catalog.json` vector at cosine **1.0000002**, zero dimensions differing by more than 0.01. `scripts/generate-wasm-fixture.mjs` builds the fixture from the engine directly, so the JSON is not even in the loop. |
 | Wrong model (d256 vs d384) | **was a bug, fixed** | Every HF `wenshutang/ternlight` checkpoint is d_model=256/n_heads=4/ffn=1024; the site uses 384/6/1536. Same 384-dim *output* width, which is why nothing failed loudly. |
-| Tokenizer | **ruled out** | Byte-identical to the wasm's embedded copy (sha256 `d241a60dÃ¢â‚¬Â¦`), and both emit the same id sequence (`active=23`, identical prefix) for the product texts. |
-| Forward-pass math | **ruled out** | `inference.rs` + `kernels.rs` follow `training/pack/unpack.py` step for step: parameterless LN Ã¢â€ â€™ per-token AbsMax Ã¢â€ â€™ round/clamp to int8 Ã¢â€ â€™ i8 matmul Ã¢â€ â€™ `+bias` in pre-rescale space Ã¢â€ â€™ divide by `(w_scale * x_scale)`; GELU is the exact erf form; attention is `[T, n_heads, d_head]` with `1/Ã¢Ë†Å¡d_head`. Ternary codes unpack low-bits-first with `0b01Ã¢â€ â€™+1`, `0b10Ã¢â€ â€™Ã¢Ë†â€™1`, exactly as the packer wrote them. |
+| Tokenizer | **ruled out** | Byte-identical to the wasm's embedded copy (sha256 `d241a60d…`), and both emit the same id sequence (`active=23`, identical prefix) for the product texts. |
+| Forward-pass math | **ruled out** | `inference.rs` + `kernels.rs` follow `training/pack/unpack.py` step for step: parameterless LN → per-token AbsMax → round/clamp to int8 → i8 matmul → `+bias` in pre-rescale space → divide by `(w_scale * x_scale)`; GELU is the exact erf form; attention is `[T, n_heads, d_head]` with `1/√d_head`. Ternary codes unpack low-bits-first with `0b01→+1`, `0b10→−1`, exactly as the packer wrote them. |
 | Engine drift from upstream | **ruled out** | `scripts/check-vendor-clean.mjs` pins all five files byte-for-byte; same hashes at commit `c6d2c0a` (the published 0.1.1 build) and on `main`. |
 | Model extraction | **was the bug, fixed** | See above. |
 
@@ -174,27 +174,27 @@ else. Native ARM takes the scalar path. Correct, just slower than the site.
 An `aarch64` implementation is the obvious next optimisation; see
 `docs/PERF.md`.
 
-**The parity tolerance cannot be zero Ã¢â‚¬â€ but the difference turned out not to be
+**The parity tolerance cannot be zero — but the difference turned out not to be
 rounding.** WASM accumulates the matmul in 16 lanes of `i32` SIMD while the
 native build uses a scalar loop, so the two *could* differ in the last bits. In
 practice they do not: `bitlinear_inner_simd` and its scalar twin are both exact
-integer arithmetic (`i8 Ãƒâ€” i8 Ã¢â€ â€™ i32`, no floating point), and the measured
+integer arithmetic (`i8 × i8 → i32`, no floating point), and the measured
 difference is **exactly `0.000e+0` per dimension across all eight products**.
-The `1e-3` tolerance and cosine Ã¢â€°Â¥ `0.9999` floor in `tests/parity.rs` are
-therefore slack, not a fudge Ã¢â‚¬â€ they are far tighter than any semantic difference
+The `1e-3` tolerance and cosine ≥ `0.9999` floor in `tests/parity.rs` are
+therefore slack, not a fudge — they are far tighter than any semantic difference
 (two different models score below 0.9), so they would still catch a model swap.
 
 **`db.js` has mixed line endings** (`\n`, `\r\n` and `\r\r\n` in the same
-file Ã¢â‚¬â€ 154/44/471 at time of writing). Plain text replaces silently fail to
+file — 154/44/471 at time of writing). Plain text replaces silently fail to
 find their anchor. Patch it with `scripts/patch-store-catalog-json.mjs`, which
-uses single-line anchors, exactly as CATALOG-GUIDE.md Ã‚Â§10 says.
+uses single-line anchors, exactly as CATALOG-GUIDE.md §10 says.
 
 **PowerShell `Set-Content -Encoding utf8` writes a BOM** that makes `JSON.parse`
 fail on an invisible character. `scripts/bump-site-version.mjs` writes UTF-8
 without one.
 
 **A model mismatch is the dangerous failure.** A dot product between two
-unrelated models still returns a confident, entirely wrong ranking Ã¢â‚¬â€ no error,
+unrelated models still returns a confident, entirely wrong ranking — no error,
 no warning. So `RustSearchEngine.loadIndex` compares the catalog's
 `search_model` against `SEARCH_MODEL` compiled into the binary and **refuses**
 rather than proceeding. `SEARCH_MODEL` appears in four places that must move
@@ -219,18 +219,70 @@ vector on *every* product. Partial indexes rank only what they have and look
 like a weak result set rather than a broken one, so the app refuses to search
 at all and says why.
 
+### A release APK had no internet permission, and the message blamed the user's wifi
+
+Opening the app said *"Could not reach the store. Check your connection and try
+again"* while the connection was fine. The URL was fine too (`catalog.json`
+returns HTTP 200 with all 8 products).
+
+The cause was Flutter's own Android template: it puts
+`<uses-permission android:name="android.permission.INTERNET"/>` in
+`android/app/src/{debug,profile}/AndroidManifest.xml` and **not** in
+`android/app/src/main/AndroidManifest.xml`. That is correct for a fresh
+Flutter app, which talks to no network, so the omission is invisible until the
+app starts fetching something. The release APK shipped with no network
+permission at all — `dart:io` threw `SocketException` on every attempt.
+
+This is the worst shape of bug, because **every diagnostic points at the wrong
+thing**:
+
+- `dart:io` raises a permission/connect error that names no permission.
+- The message deliberately says "check your connection", because the code
+  cannot tell "no permission" from "no network" — both arrive as the same
+  exception.
+- Nothing anywhere mentions permissions, so there is nothing to grep for.
+
+`android/app/src/main/AndroidManifest.xml` now declares `INTERNET`, with a
+comment explaining why it cannot move back. **When adding any permission, put
+it in `main`, not in the debug manifest** — `flutter run` will work fine
+without it, which is what makes this survive right up to the APK.
+
+### Mojibake repair: whole-file round trips destroy correct text
+
+Writing a UTF-8 file through `Get-Content -raw` (no `-Encoding`) and back with
+`WriteAllText(..., UTF8)` corrupts every non-ASCII character, because Windows
+PowerShell reads the file as cp1252. The symptom is `—` becoming `â€”` and `§`
+becoming `Â§`, which then propagate into **user-visible strings** — the product
+button read `Order on WhatsApp â€”`.
+
+Two rules, both learned the hard way:
+
+1. **Never repair by round-tripping the whole file.** A whole-file
+   cp1252→UTF-8 round trip cannot distinguish corrupted bytes from correct
+   characters, so it converts already-correct `—` (U+2014) into U+FFFD. It
+   "repairs" the corruption and destroys the file in the same pass. Repair
+   **per run** of non-ASCII characters, and accept a run only if it decodes as
+   UTF-8 *and* the result no longer contains a mojibake marker.
+2. **A second corruption pass is not repairable at all.** cp1252 leaves `0x9D`
+   undefined, so a double-encoded `—` arrives truncated and unwrapping it
+   yields a NUL. Worse than the original. Stop after one pass and leave
+   anything lossy alone.
+
+Detection is cheap: sweep for `U+FFFD`, the markers `Ã.` / `Â.` / `â€`, and
+control characters, then confirm with `git diff` before committing.
+
 ---
 
 ## 4. Ordering rules inherited from the store
 
-Not preferences Ã¢â‚¬â€ breaking them breaks the shop. See `README.md` for the
+Not preferences — breaking them breaks the shop. See `README.md` for the
 rationale.
 
 - **WhatsApp is the only purchase path.** No cart, no account, no checkout.
 - **PKR only, integer paisa.** No `double` anywhere near a price, no USD, no
   currency selector.
 - **Grid uniformity is enforced by layout.** Fixed-height text boxes (2 lines
-  name, 3 lines description). Never swap these for `maxLines` alone Ã¢â‚¬â€ that is
+  name, 3 lines description). Never swap these for `maxLines` alone — that is
   what lets a row go ragged.
 - **Only verifiable claims.** The About page says nothing about who runs the
   shop or where goods come from, because that is not known.
@@ -271,16 +323,16 @@ anything is pushed.
 - [ ] **Build the Android `.so` and the APK.** `cargo build --release --target
       aarch64-linux-android`, then `flutter build apk`. The GNU host toolchain is
       required for build scripts (see `rust/.cargo/config.toml`), and the target
-      must be installed *for that toolchain* Ã¢â‚¬â€ rustup keeps targets per
+      must be installed *for that toolchain* — rustup keeps targets per
       toolchain, so `aarch64-linux-android` being present under `msvc` does not
       help.
-- [x] ~~Find the forward-pass divergence~~ Ã¢â‚¬â€ solved, see Ã‚Â§3.
+- [x] ~~Find the forward-pass divergence~~ — solved, see §3.
 
 ### The bridge is hand-written, not generated
 
 `flutter_rust_bridge` is gone, and the reason is the toolchain rather than the
 technology. FRB 2.13's generator shells out to `cargo expand`, which needs
-`-Zunpretty=expanded` Ã¢â‚¬â€ **a nightly toolchain**. Getting there meant clearing
+`-Zunpretty=expanded` — **a nightly toolchain**. Getting there meant clearing
 six blockers in order, each exposing the next:
 
 | Symptom | Cause | Fix |
@@ -295,13 +347,13 @@ six blockers in order, each exposing the next:
 That is a permanent tax on every `flutter build apk` in exchange for a
 seven-function interface. So `rust/src/ffi.rs` and
 `lib/src/services/native_engine.dart` are now a hand-written matched pair, and
-the build needs only `cargo` and `flutter` Ã¢â‚¬â€ no codegen, no extra dependency.
+the build needs only `cargo` and `flutter` — no codegen, no extra dependency.
 
 What that costs, and the mitigations:
 
 - **No thread pool.** FRB's `#[frb(async)]` moved search off the UI isolate. Now
-  each call is one synchronous crossing. The work is bounded Ã¢â‚¬â€ one embed (a few
-  ms) plus a scan over the index Ã¢â‚¬â€ and the index still lives in Rust, so nothing
+  each call is one synchronous crossing. The work is bounded — one embed (a few
+  ms) plus a scan over the index — and the index still lives in Rust, so nothing
   beyond ~10 small records is marshalled per keystroke.
 - **No generated tree to version-match** against `pubspec.yaml`. A genuine win.
 - **`Vec<Vec<f32>>` became one flat buffer**, so the whole index crosses in a
@@ -311,13 +363,13 @@ Both files are a pair: change one, change the other.
 
 **Done**
 
-- [x] ~~Generate `android/`~~ Ã¢â‚¬â€ done via `flutter create`.
-- [x] ~~Compile the Rust crate~~ Ã¢â‚¬â€ it builds and runs.
-- [x] ~~Find the right model~~ Ã¢â‚¬â€ it was not the published checkpoint; see Ã‚Â§3.
-- [x] ~~Run the parity test~~ Ã¢â‚¬â€ it runs, and passes: 9/9, bit-exact against
+- [x] ~~Generate `android/`~~ — done via `flutter create`.
+- [x] ~~Compile the Rust crate~~ — it builds and runs.
+- [x] ~~Find the right model~~ — it was not the published checkpoint; see §3.
+- [x] ~~Run the parity test~~ — it runs, and passes: 9/9, bit-exact against
       the WASM. The bug was in extracting the model from the WASM, not in the
-      engine; see Ã‚Â§3.
-- [x] ~~Fix the 192-byte section misalignment~~ Ã¢â‚¬â€ that diagnosis was wrong and
+      engine; see §3.
+- [x] ~~Fix the 192-byte section misalignment~~ — that diagnosis was wrong and
       has been reverted. Those 192 bytes are embedding row 0.
 
 **Should do**
@@ -331,7 +383,7 @@ Both files are a pair: change one, change the other.
       a vanishing share. `build-apk.mjs` can build it but nothing says it
       should ship.
 - [ ] **Release, then set `apkUrl`.** `../Store/build.config.json` keeps
-      `apkUrl` empty until a `v1.0` release exists, which is correct Ã¢â‚¬â€ it
+      `apkUrl` empty until a `v1.0` release exists, which is correct — it
       renders an inert control rather than a link to nothing.
 
 **Housekeeping**

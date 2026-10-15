@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Background layer for the adaptive launcher icon. Matches the white base
+  rectangle in assets/icon/app_icon.svg. A colour rather than a drawable so
+  there is nothing to rasterise and nothing that can drift out of sync.
+-->
+<resources>
+    <color name="ic_launcher_background">#FFFFFF</color>
+</resources>

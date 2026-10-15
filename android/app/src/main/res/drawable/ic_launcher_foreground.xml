@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Launcher foreground, matching assets/icon/app_icon.svg.
+
+  Android 8+ draws launcher icons inside a masked shape and keeps only the
+  central 72x72 of the 108x108 viewport visible. The artwork already sits
+  inside that safe zone (it spans x 22..86, y 22..80), so the same coordinates
+  work unchanged here — no scaling needed, which is why this file can mirror
+  the SVG rather than being a separate design.
+
+  The monogram is white and overlaps the purple tiles, so it stays legible
+  against the white background layer without any extra masking.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Top-left tile -->
+    <path
+        android:fillColor="#6a4b8f"
+        android:pathData="M28,22h19a6,6 0 0 1 6,6v19a6,6 0 0 1 -6,6h-19a6,6 0 0 1 -6,-6v-19a6,6 0 0 1 6,-6z" />
+
+    <!-- Top-right tile -->
+    <path
+        android:fillColor="#6a4b8f"
+        android:pathData="M61,22h19a6,6 0 0 1 6,6v19a6,6 0 0 1 -6,6h-19a6,6 0 0 1 -6,-6v-19a6,6 0 0 1 6,-6z" />
+
+    <!-- Bottom-left tile -->
+    <path
+        android:fillColor="#6a4b8f"
+        android:pathData="M28,55h19a6,6 0 0 1 6,6v19a6,6 0 0 1 -6,6h-19a6,6 0 0 1 -6,-6v-19a6,6 0 0 1 6,-6z" />
+
+    <!-- Bottom-right tile -->
+    <path
+        android:fillColor="#6a4b8f"
+        android:pathData="M61,55h19a6,6 0 0 1 6,6v19a6,6 0 0 1 -6,6h-19a6,6 0 0 1 -6,-6v-19a6,6 0 0 1 6,-6z" />
+
+    <!-- Centred monogram: letter S -->
+    <path
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="11"
+        android:strokeLineJoin="round"
+        android:pathData="M65,45.75 A11,8.25 0 0 0 43,45.75 A11,8.25 0 0 0 54,54 A11,8.25 0 0 1 65,62.25 A11,8.25 0 0 1 54,70.5 A11,8.25 0 0 1 43,62.25" />
+</vector>

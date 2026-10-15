@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Adaptive launcher icon (Android 8.0 / API 26+).
+
+  Without this, Android falls back to the legacy mipmap-*/ic_launcher.png and
+  shrinks it to fit the masked shape, which looks noticeably smaller than an
+  adaptive icon on the same launcher. Splitting it into a background colour and
+  a foreground layer lets the system crop to whatever mask the device theme
+  uses — circle, squircle, rounded square — and the artwork is already inside
+  the 72x72 safe zone, so no mask clips it.
+
+  The background is the SVG's opaque white base layer.
+-->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/ic_launcher_background" />
+    <foreground android:drawable="@drawable/ic_launcher_foreground" />
+</adaptive-icon>

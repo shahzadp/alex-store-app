@@ -11,18 +11,18 @@ import '../widgets/product_image.dart';
 ///
 /// # Layout follows the site's product page
 ///
-/// MEMORY.md Â§3: "Product page = three regions. Product, a Specifications box
+/// MEMORY.md §3: "Product page = three regions. Product, a Specifications box
 /// to its right on desktop, and a scrollable Full description box beneath."
 /// On a phone the specs box moves under the product, which is the same reading
 /// order as the desktop column.
 ///
 /// # What is shown, and what is not
 ///
-/// The site ships all three text fields (CATALOG-GUIDE.md Â§5):
-///   * `description` â€” the one-line blurb, repeated under the price so the
+/// The site ships all three text fields (CATALOG-GUIDE.md §5):
+///   * `description` — the one-line blurb, repeated under the price so the
 ///     product page does not force a scroll to find it;
-///   * `details` â€” the long write-up, in the "Full description" box;
-///   * `specs` â€” the structured table, omitted entirely when empty rather
+///   * `details` — the long write-up, in the "Full description" box;
+///   * `specs` — the structured table, omitted entirely when empty rather
 ///     than rendered as an empty box.
 class ProductScreen extends StatelessWidget {
   const ProductScreen({super.key, required this.slug});
@@ -82,7 +82,7 @@ class ProductScreen extends StatelessWidget {
               _Section(
                 title: 'Full description',
                 // The long copy is inside a bounded, scrollable box on the
-                // site so the specifications table stays visible. Same here â€”
+                // site so the specifications table stays visible. Same here —
                 // otherwise this section pushes the WhatsApp button off-screen.
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxHeight: 260),
@@ -215,7 +215,7 @@ class _SpecsTable extends StatelessWidget {
 /// The purchase action, pinned above the system nav bar.
 ///
 /// Sold-out products get a disabled control rather than a working WhatsApp
-/// link: CATALOG-GUIDE.md Â§7 â€” sold out means `in_stock = 0` and the card says
+/// link: CATALOG-GUIDE.md §7 — sold out means `in_stock = 0` and the card says
 /// so, rather than pretending to be purchasable.
 class _WhatsAppBar extends StatelessWidget {
   const _WhatsAppBar({required this.product});
@@ -242,7 +242,7 @@ class _WhatsAppBar extends StatelessWidget {
                     number: catalog?.store.whatsapp ?? '',
                     message: product.whatsappMessage(catalog?.store.whatsapp ?? ''),
                   ),
-                  child: Text('Order on WhatsApp â€” ${product.price.formatted}'),
+                  child: Text('Order on WhatsApp — ${product.price.formatted}'),
                 )
               : OutlinedButton(
                   onPressed: null,

@@ -12,7 +12,7 @@ import 'product_screen.dart';
 ///
 /// # How a query is answered
 ///
-/// 1. Dart debounces the keystroke (see [_debounce]) â€” the engine embeds on
+/// 1. Dart debounces the keystroke (see [_debounce]) — the engine embeds on
 ///    every call, and 250 ms is long enough to avoid embedding "mug" then
 ///    "mugs" then "mugs " for one keystroke.
 /// 2. [CatalogService.search] hands the query to Rust.
@@ -213,9 +213,9 @@ class _SearchScreenState extends State<SearchScreen> {
 
 /// Shown before anything is typed.
 ///
-/// Phrased as phrasings a shopper would use, not product names â€” the point of
+/// Phrased as phrasings a shopper would use, not product names — the point of
 /// a semantic index is that you do not have to know what things are called.
-/// CATALOG-GUIDE.md Â§9 asks for exactly this when verifying a reindex.
+/// CATALOG-GUIDE.md §9 asks for exactly this when verifying a reindex.
 class _Suggestions extends StatelessWidget {
   const _Suggestions({required this.catalog});
 
@@ -262,8 +262,8 @@ class _Suggestions extends StatelessWidget {
 /// Warns that the site's index is incomplete.
 ///
 /// A missing vector means the app refuses to search rather than returning
-/// whatever it can rank â€” which is the same trade the site makes in
-/// `search.js`, and for the same reason (CATALOG-GUIDE.md Â§1).
+/// whatever it can rank — which is the same trade the site makes in
+/// `search.js`, and for the same reason (CATALOG-GUIDE.md §1).
 class _IndexWarning extends StatelessWidget {
   const _IndexWarning({required this.slugs});
 

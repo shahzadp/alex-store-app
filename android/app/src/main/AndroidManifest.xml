@@ -1,6 +1,15 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- REQUIRED, and easy to lose.
+         Flutter's template puts this permission only in the debug and profile
+         manifests, so a release APK ships with NO network access at all. The
+         app still launches and renders, and every catalog fetch fails with
+         "could not reach the store, check your connection and try again" —
+         which looks exactly like the user having no connectivity. It belongs
+         here, in main, because the app fetches catalog.json on every launch. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+
     <application
-        android:label="alex_store"
+        android:label="Alex Store"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

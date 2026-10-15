@@ -10,7 +10,7 @@ import 'search_screen.dart';
 
 /// Every product, filterable by category.
 ///
-/// The filter is a plain subset of the fetched catalog â€” no request, no query.
+/// The filter is a plain subset of the fetched catalog — no request, no query.
 /// With eight products there is nothing a server could do better, and a filter
 /// that can fail is a filter that eventually will.
 class ShopScreen extends StatefulWidget {

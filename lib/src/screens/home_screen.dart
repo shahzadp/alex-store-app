@@ -18,7 +18,7 @@ import 'shop_screen.dart';
 ///
 /// Structure follows the site's index page: the delivery threshold, then the
 /// hero, then collections, then the product grid. Nothing that a shopper has
-/// to dismiss first, and no cart, because there is no cart (MEMORY.md Â§3).
+/// to dismiss first, and no cart, because there is no cart (MEMORY.md §3).
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
@@ -114,8 +114,8 @@ class _Body extends StatelessWidget {
 /// The delivery-threshold strip.
 ///
 /// States only the threshold. On the site a call-to-action here was removed as
-/// redundant â€” WhatsApp is already one tap from every product, the drawer and
-/// the footer (MEMORY.md Â§3) â€” so this bar carries information and nothing else.
+/// redundant — WhatsApp is already one tap from every product, the drawer and
+/// the footer (MEMORY.md §3) — so this bar carries information and nothing else.
 ///
 /// Hidden entirely when the store has no threshold configured: an empty
 /// announcement bar is worse than none.
@@ -165,7 +165,7 @@ class _Hero extends StatelessWidget {
           Text(catalog.store.name, style: theme.textTheme.displaySmall),
           const SizedBox(height: 10),
           // Only what is verifiable about the store. No invented founding
-          // year, sourcing story or location (MEMORY.md Â§3).
+          // year, sourcing story or location (MEMORY.md §3).
           Text(
             'Stoneware, linen and brass for an already-lived room. '
             'Order over WhatsApp; delivery arranged with you.',
@@ -231,8 +231,8 @@ class _Collections extends StatelessWidget {
 }
 
 /// A collection is editorial and deliberately not a product group
-/// (CATALOG-GUIDE.md Â§6: linking them would be a schema change). So this is
-/// a description, not a link into a filtered list â€” tapping it says what it
+/// (CATALOG-GUIDE.md §6: linking them would be a schema change). So this is
+/// a description, not a link into a filtered list — tapping it says what it
 /// is rather than pretending it filters.
 class _CollectionTile extends StatelessWidget {
   const _CollectionTile({required this.collection, required this.seed});

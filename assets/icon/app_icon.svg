@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="108" height="108" viewBox="0 0 108 108">
+  <!-- Background: opaque white base layer -->
+  <path fill="#FFFFFF" d="M0,0h108v108h-108z"/>
+
+  <!-- Top-left -->
+  <path fill="#6a4b8f" d="M28,22h19a6,6 0 0 1 6,6v19a6,6 0 0 1 -6,6h-19a6,6 0 0 1 -6,-6v-19a6,6 0 0 1 6,-6z"/>
+
+  <!-- Top-right -->
+  <path fill="#6a4b8f" d="M61,22h19a6,6 0 0 1 6,6v19a6,6 0 0 1 -6,6h-19a6,6 0 0 1 -6,-6v-19a6,6 0 0 1 6,-6z"/>
+
+  <!-- Bottom-left -->
+  <path fill="#6a4b8f" d="M28,55h19a6,6 0 0 1 6,6v19a6,6 0 0 1 -6,6h-19a6,6 0 0 1 -6,-6v-19a6,6 0 0 1 6,-6z"/>
+
+  <!-- Bottom-right -->
+  <path fill="#6a4b8f" d="M61,55h19a6,6 0 0 1 6,6v19a6,6 0 0 1 -6,6h-19a6,6 0 0 1 -6,-6v-19a6,6 0 0 1 6,-6z"/>
+
+  <!-- Centred monogram: letter S (44 tall, same height as the D, bold stroke) -->
+  <path fill="none" stroke="#FFFFFF" stroke-width="11" stroke-linejoin="round"
+        d="M65,45.75 A11,8.25 0 0 0 43,45.75 A11,8.25 0 0 0 54,54 A11,8.25 0 0 1 65,62.25 A11,8.25 0 0 1 54,70.5 A11,8.25 0 0 1 43,62.25"/>
+</svg>
