@@ -43,6 +43,39 @@ true.
 
 ## 3. Things that have actually bitten, or will
 
+### The one that is currently open
+
+**The native engine does not yet reproduce the site's vectors.** `cargo test
+--test parity` fails with a per-dimension divergence of ~0.175 against
+`catalog.sql`. This is the single most important fact in this file: **the app's
+search is unverified and must not ship until it passes.**
+
+What has been *ruled out*, all empirically:
+
+| Suspect | Verdict | Evidence |
+| --- | --- | --- |
+| Wrong model | **Was the bug** | Every HuggingFace `wenshutang/ternlight` checkpoint is d_model=256/n_heads=4/ffn=1024. The site uses d_model=384/n_heads=6/ffn=1536. Same 384-dim *output* width, which is why nothing failed loudly. Fixed by `scripts/extract-model-from-wasm.mjs`. |
+| Weights | **ruled out** | The extracted `model.bin` is byte-identical to the wasm's across all 7,492,248 bytes — zero differing bytes. |
+| Tokenizer | **ruled out** | Byte-identical to the wasm's embedded copy (sha256 `d241a60d...`). |
+| Scalar vs SIMD matmul | **ruled out** | The scalar `bitlinear_inner` is *bit-identical* to the WASM SIMD accumulation order: max abs diff 0 across all 384 rows. The worry in `docs/PERF.md` about scalar being "approximately 10-20x slower" is about speed only — the results are identical. |
+| Embedding lookup | works | 932 of 1152 values non-zero, magnitudes ~0.005–0.05, correct scale. |
+
+So there is a real behavioural difference in the forward pass, and it has not
+been found. **Next step:** dump `x` after each stage — embedding lookup, ln1,
+attention, FFN, final LN, projection — and diff each against a JS
+reimplementation of the same stage. The first stage that differs names the bug.
+
+Two things made this hard to see, and are worth remembering:
+
+- **The engine's `debug_assert` in `compute_layout` disagrees with the real
+  file by 192 bytes.** It is a `debug_assert`, so the WASM release build never
+  trips it — the wasm reads the tail of the projection matrix slightly wrong and
+  nobody notices, because it produces *an* answer. Do not treat that assertion as
+  ground truth; treat it as a bug report.
+- **The wasm build has no trailing SHA-256**, so `format.rs::verify_sha256` — which
+  the Rust engine requires — cannot be satisfied by the extracted blob. The
+  script recomputes and re-appends one.
+
 **`include_bytes!` is a compile-time failure, not a runtime one.** A missing
 `rust/src/assets/model.bin` produces an error pointing at the `include`, which
 does not say "run `node scripts/fetch-model.mjs`". `scripts/build-apk.mjs`
@@ -168,15 +201,20 @@ anything is pushed.
 
 **Blocking**
 
-- [ ] **Generate `android/`.** It comes from `flutter create`; nothing in this
-      repo can produce it without the Flutter SDK.
+- [ ] **Find the forward-pass divergence.** See §3. Nothing ships until
+      `cargo test --test parity` passes. This is the top item.
 - [ ] **Run `flutter_rust_bridge_codegen`.** `lib/src/api/` does not exist, so
-      `rust_search_engine.dart` does not compile yet. That is the first thing
-      to break on the first build.
-- [ ] **Compile the Rust crate.** The vendored engine has never been built for
-      a non-wasm target in this repo. `cd rust && cargo test` is the check.
-- [ ] **Run the parity test against the real site vectors.** The fixture is
-      extracted and validated; the assertion has never executed.
+      `rust_search_engine.dart` does not compile yet.
+- [ ] **Build the Android `.so`.** `cargo build --release --target
+      aarch64-linux-android` has never succeeded here; the GNU host toolchain is
+      required for build scripts (see `.cargo/config.toml`).
+
+**Done**
+
+- [x] ~~Generate `android/`~~ — done via `flutter create`.
+- [x] ~~Compile the Rust crate~~ — it builds and runs.
+- [x] ~~Find the right model~~ — it was not the published checkpoint; see §3.
+- [x] ~~Run the parity test~~ — it runs, and correctly reports failure.
 
 **Should do**
 

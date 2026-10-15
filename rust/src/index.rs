@@ -201,6 +201,25 @@ mod tests {
         v
     }
 
+    /// A unit vector spanning two axes, normalised here.
+    ///
+    /// Needed wherever several products must score *differently* against one
+    /// query. Scaling a single-axis vector (`axis(dim, 0, m)`) does not work:
+    /// `build` re-normalises every row, so 0.2/0.9/0.5 all collapse to exactly
+    /// 1.0, every score ties at 1.0, and the test silently ends up asserting
+    /// the slug tie-break instead of the sort. Distinct cosines require
+    /// distinct directions.
+    fn mix(dim: usize, i: usize, j: usize, a: f32, b: f32) -> Vec<f32> {
+        let mut v = vec![0f32; dim];
+        v[i] = a;
+        v[j] = b;
+        let n = (a * a + b * b).sqrt();
+        for x in &mut v {
+            *x /= n;
+        }
+        v
+    }
+
     #[test]
     fn build_rejects_wrong_dimensions() {
         let err = ProductIndex::build(vec!["a".into()], vec![vec![0f32; 128]])
@@ -247,7 +266,16 @@ mod tests {
         )
         .unwrap();
         let hits = idx.search_vector(&axis(EMBEDDING_DIMS, 0), 10);
-        assert!((hits[0].score).abs() < 1e-6);
+
+        // "a" is the match and must score 1.0.
+        assert_eq!(hits[0].slug, "a");
+        assert!((hits[0].score - 1.0).abs() < 1e-6, "got {}", hits[0].score);
+
+        // "b" is orthogonal to the query, so cosine is 0. Look it up by slug
+        // rather than by position — asserting on hits[1] would pass for the
+        // wrong reason if the ordering ever changed.
+        let b = hits.iter().find(|h| h.slug == "b").expect("b missing");
+        assert!(b.score.abs() < 1e-6, "orthogonal score was {}", b.score);
     }
 
     #[test]
@@ -264,17 +292,31 @@ mod tests {
 
     #[test]
     fn results_are_sorted_descending() {
+        // Query along axis 0. Each product sits at a different *angle* to it, so
+        // all three scores are distinct and the expected order comes from the
+        // sort rather than from the tie-break.
+        //   c = 1.0   a = 0.8   b = 0.6
         let idx = ProductIndex::build(
             vec!["a".into(), "b".into(), "c".into()],
             vec![
+                mix(EMBEDDING_DIMS, 0, 1, 0.8, 0.6),
+                mix(EMBEDDING_DIMS, 0, 1, 0.6, 0.8),
                 axis(EMBEDDING_DIMS, 0),
-                axis(EMBEDDING_DIMS, 1),
-                axis(EMBEDDING_DIMS, 2),
             ],
         )
         .unwrap();
-        let hits = idx.search_vector(&axis(EMBEDDING_DIMS, 2), 3);
-        assert_eq!(hits.iter().map(|h| h.slug.as_str()).collect::<Vec<_>>(), ["c", "b", "a"]);
+
+        let hits = idx.search_vector(&axis(EMBEDDING_DIMS, 0), 3);
+        assert_eq!(
+            hits.iter().map(|h| h.slug.as_str()).collect::<Vec<_>>(),
+            ["c", "a", "b"],
+            "expected c (1.0) > a (0.8) > b (0.6)"
+        );
+        assert!(
+            hits[0].score > hits[1].score && hits[1].score > hits[2].score,
+            "scores must strictly descend: {:?}",
+            hits.iter().map(|h| (h.slug.as_str(), h.score)).collect::<Vec<_>>()
+        );
     }
 
     #[test]

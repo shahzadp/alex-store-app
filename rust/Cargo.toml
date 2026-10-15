@@ -16,9 +16,17 @@ name = "alex_store_native"
 crate-type = ["cdylib", "staticlib", "rlib"]
 
 [features]
-# `default` stays empty so that `cargo test` compiles the engine and the parity
-# harness without dragging in flutter_rust_bridge and its codegen toolchain.
-default = []
+# `emb_int4` is a default because a build with *no* embedding-format feature
+# does not compile at all: ternlight selects `BUILD_EMBEDDING_FORMAT` with
+# `#[cfg(feature = "emb_*")]` and the kernels dispatch on the same flags, so
+# exactly one must be on. Making it a default means a plain `cargo build` and
+# `cargo test` work on a fresh clone with no flags at all.
+#
+# `frb` is deliberately NOT a default. It pulls in `flutter_rust_bridge`, whose
+# glue lives in a generated file that does not exist until codegen has run — so
+# a clean clone must still be able to run `cargo test` against the engine alone.
+# Pass it explicitly: `cargo build --features frb` (build-apk.mjs does).
+default = ["emb_int4"]
 
 # Added by flutter_rust_bridge_codegen for the Android build.
 frb = ["dep:flutter_rust_bridge"]
@@ -45,13 +53,27 @@ emb_int8 = []
 emb_ternary = []
 
 [dependencies]
-# HuggingFace `tokenizers`. `fancy-regex` replaces the default `onig` because
-# onig links a C library, and we cross-compile to Android without wanting a C
-# toolchain in the Rust build. In practice the regex type is never touched:
-# the committed tokenizer.json uses BertNormalizer + BertPreTokenizer, neither
-# of which compiles a pattern - it only does Unicode category tests. So this
-# dep is here to satisfy the crate's API, not because we run regex.
-tokenizers = { version = "0.19", default-features = false, features = ["fancy-regex"] }
+# HuggingFace `tokenizers`.
+#
+# `unstable_wasm` is the feature that matters, and it is not obvious. The crate
+# picks its regex backend on that flag, not on `onig`:
+#
+#     #[cfg(feature = "unstable_wasm")] mod fancy;
+#     #[cfg(not(feature = "unstable_wasm"))] mod onig;
+#
+# So with `default-features = false` and *only* `fancy-regex`, `unstable_wasm`
+# stays off, the onig branch is compiled, and the build dies with
+# "unresolved import `onig`" — because `onig` was the thing we were trying to
+# avoid pulling in. `unstable_wasm = ["fancy-regex", "getrandom/js"]` is what
+# flips it.
+#
+# Why avoid `onig` at all: it links a C library (`onig_sys`), which we
+# cross-compile to Android without wanting a C toolchain in the Rust build.
+#
+# In practice neither backend is exercised. The committed tokenizer.json uses
+# BertNormalizer + BertPreTokenizer, neither of which compiles a pattern — they
+# only do Unicode category tests. This is here to satisfy the crate's API.
+tokenizers = { version = "0.19", default-features = false, features = ["unstable_wasm", "fancy-regex"] }
 
 # SHA256 over the trailing 32 bytes of model.bin (format.rs).
 sha2 = { version = "0.10", default-features = false }

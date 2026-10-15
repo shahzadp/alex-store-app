@@ -269,11 +269,33 @@ fn ranking_scores_match_the_site() {
 fn engine_reports_the_expected_model() {
     let summary = alex_store_native::model::config_summary();
     assert!(summary.contains("int4"), "expected an int4 build, got: {summary}");
-    assert!(summary.contains("d_model=384"), "expected d_model=384, got: {summary}");
     assert!(
         summary.contains("vocab=30522"),
         "expected a BERT-base-uncased vocab of 30522, got: {summary}"
     );
+
+    // Check every architectural field, not just the ones that sound important.
+    //
+    // `d_model` and `output_dim` are both 384 for the model the *HuggingFace*
+    // checkpoints publish, so asserting on output_dim alone cannot tell the two
+    // apart — that mistake is exactly how a d256 model shipped against d384
+    // vectors. `n_heads` and `ffn_dim` are the discriminating fields.
+    for expected in [
+        "d_model=384",
+        "n_layers=2",
+        "n_heads=6",
+        "ffn_dim=1536",
+        "output_dim=384",
+        "max_seq_len=128",
+    ] {
+        assert!(
+            summary.contains(expected),
+            "expected {expected:?} in the model header, got: {summary}\n\
+             \n  If the site has changed its model, this is expected — and it\n  \
+             means every vector in catalog.sql is stale and both sides need a\n  \
+             full reindex. See MEMORY.md."
+        );
+    }
 }
 
 #[test]
