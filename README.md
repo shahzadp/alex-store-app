@@ -42,7 +42,7 @@ lib/
       rust_search_engine.dart   dart:ffi binding to the native engine
       whatsapp.dart             wa.me links, plus the two-toned button label
       launcher.dart             external URL opening
-    screens/                    home, shop, product, search, about
+    screens/                    home, shop, product, search
     widgets/                    product card/grid, product image
     theme.dart                  the site's palette, type scale, card metrics
 

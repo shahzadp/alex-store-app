@@ -182,4 +182,20 @@ class StoreTheme {
   static const descriptionLineHeight = 20.0;
   static const nameHeight = nameLines * nameLineHeight;
   static const descriptionHeight = descriptionLines * descriptionLineHeight;
+
+  /// Padding needed at the bottom of a scrolling view so its last row can be
+  /// scrolled clear of the system navigation bar.
+  ///
+  /// This is the "three-button navigation area" problem: on gesture-nav
+  /// devices the inset is a few dp and nothing looks wrong, but with the
+  /// three-button bar it is around 48dp, and any hard-coded bottom padding
+  /// smaller than that leaves the last card or footer line sitting underneath
+  /// the bar. It looked fine in the emulator and was unusable on the handset.
+  ///
+  /// `viewPadding` rather than `padding`: `Scaffold` strips `padding.bottom`
+  /// from its body once it has consumed that area for a `bottomNavigationBar`,
+  /// so on the product screen — which does have one — `padding.bottom` is 0 and
+  /// the real inset has to come from `viewPadding`.
+  static double bottomSafeInset(BuildContext context) =>
+      MediaQuery.viewPaddingOf(context).bottom;
 }

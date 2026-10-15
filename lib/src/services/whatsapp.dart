@@ -37,20 +37,26 @@ String whatsappLink({
 /// 1.65:1 on the purple, so the site carries a lighter green for this surface
 /// and this is where it lives in the app.
 ///
+/// # Do not pass a base style
+///
+/// The spans deliberately carry NO colour of their own, so they inherit from
+/// wherever the label is placed. An earlier version took a `base` style and
+/// the call sites passed `DefaultTextStyle.of(context).style` — but that
+/// context is the *screen's*, above the button, so the label inherited the
+/// page's dark ink and rendered dark-on-purple while only the word
+/// "WhatsApp" stayed legible. Inside a button the ambient DefaultTextStyle is
+/// already the button's foreground, so inheriting is both simpler and correct:
+/// a light button gets light text and a dark one gets dark text, with no
+/// call site able to get it wrong.
+///
 /// [before] and [after] are the plain-text parts, either of which may be empty.
-TextSpan whatsappButtonLabel(
-  String before, {
-  String after = '',
-  TextStyle? base,
-}) {
-  final inherited = base ?? const TextStyle();
+TextSpan whatsappButtonLabel(String before, {String after = ''}) {
   return TextSpan(
-    style: inherited,
     children: [
       if (before.isNotEmpty) TextSpan(text: before),
-      TextSpan(
+      const TextSpan(
         text: 'WhatsApp',
-        style: inherited.copyWith(color: StoreTheme.whatsappOnAccent),
+        style: TextStyle(color: StoreTheme.whatsappOnAccent),
       ),
       if (after.isNotEmpty) TextSpan(text: after),
     ],

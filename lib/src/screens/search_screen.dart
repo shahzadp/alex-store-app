@@ -181,7 +181,10 @@ class _SearchScreenState extends State<SearchScreen> {
     }
 
     return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(20, 4, 20, 28),
+      // The extra bottom padding clears the three-button navigation bar, so
+      // the last result can be scrolled out from under it.
+      padding: EdgeInsets.fromLTRB(
+          20, 4, 20, 28 + StoreTheme.bottomSafeInset(context)),
       itemCount: _results.length,
       separatorBuilder: (_, __) => const Divider(height: 1),
       itemBuilder: (context, i) {
@@ -230,7 +233,8 @@ class _Suggestions extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+      padding: EdgeInsets.fromLTRB(
+          20, 12, 20, 28 + StoreTheme.bottomSafeInset(context)),
       children: [
         Text(
           'Search by what you need, not what it is called.',

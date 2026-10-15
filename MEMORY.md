@@ -327,6 +327,39 @@ canonical path (the one the docs and any release step name), so
 `scripts/build-apk.mjs` now hashes both and deletes the Gradle one, failing
 loudly rather than discarding work if they ever diverge.
 
+### `DefaultTextStyle.of(context)` at a call site is the WRONG context for a button label
+
+The product page's order button rendered "Order on" and "— Rs 7,800" in dark
+ink on the purple button; only the word "WhatsApp" was legible. The label was
+built from `DefaultTextStyle.of(context).style` — but `context` there is the
+**screen's**, built *above* the button, so it captured the page's text colour
+instead of the button's foreground. Measured at **2.09:1**.
+
+The rule: **never pass a base style into a button label.** Let the spans carry
+no colour and inherit — inside a button the ambient `DefaultTextStyle` is
+already the button's foreground, so a light button gets light text and a dark
+one gets dark text, and no call site can get it wrong.
+
+`ui_safety_test.dart` resolves each span the way the engine does and asserts
+4.5:1 against the button colour, so "dark button, light text" is now enforced
+rather than remembered. Reintroducing the bug makes it fail at 2.09:1.
+
+### The three-button navigation bar is ~48dp, and every hard-coded bottom padding was smaller
+
+Home, shop and search all ended with a hard-coded bottom pad of 28dp. Android's
+three-button nav bar is around 48dp, so the last product card or footer line sat
+underneath the nav buttons. Gesture navigation has a ~16dp inset, so this looked
+correct in every emulator and only failed on the handset that uses three
+buttons.
+
+`StoreTheme.bottomSafeInset(context)` reads `MediaQuery.viewPaddingOf` — not
+`padding`, because `Scaffold` **strips `padding.bottom`** from its body once it
+has consumed that area for a `bottomNavigationBar`, which the product screen
+has. `viewPadding` is the raw window inset and survives.
+
+**A hard-coded bottom pad is a guess.** Nothing in the app may assume the
+navigation bar is a particular height.
+
 ---
 
 ## 4. Ordering rules inherited from the store
@@ -340,8 +373,10 @@ rationale.
 - **Grid uniformity is enforced by layout.** Fixed-height text boxes (2 lines
   name, 3 lines description). Never swap these for `maxLines` alone — that is
   what lets a row go ragged.
-- **Only verifiable claims.** The About page says nothing about who runs the
-  shop or where goods come from, because that is not known.
+- **Only verifiable claims.** The About screen was removed on request as
+  looking ugly, which removes the only place this rule applied. It applies to
+  anything written from now on: nothing about who runs the shop or where goods
+  come from, because that is not known.
 - **Sold out means `in_stock == false`** and a disabled control.
 
 ---

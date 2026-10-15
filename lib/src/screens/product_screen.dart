@@ -247,7 +247,6 @@ class _WhatsAppBar extends StatelessWidget {
                     whatsappButtonLabel(
                       'Order on ',
                       after: ' — ${product.price.formatted}',
-                      base: DefaultTextStyle.of(context).style,
                     ),
                   ),
                 )

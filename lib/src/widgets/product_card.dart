@@ -208,7 +208,13 @@ class ProductGrid extends StatelessWidget {
         final cellHeight = cardHeightFor(cellWidth);
 
         return GridView.builder(
-          padding: padding,
+          // The bottom inset is added here rather than by each caller, because
+          // the grid is the last thing on both the home screen and the shop
+          // screen, and a grid that does not clear the three-button navigation
+          // bar puts the last product under it.
+          padding: padding.copyWith(
+            bottom: padding.bottom + StoreTheme.bottomSafeInset(context),
+          ),
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           itemCount: products.length,

@@ -9,7 +9,6 @@ import '../services/whatsapp.dart';
 import '../theme.dart';
 import '../widgets/product_card.dart';
 import '../widgets/product_image.dart';
-import 'about_screen.dart';
 import 'product_screen.dart';
 import 'search_screen.dart';
 import 'shop_screen.dart';
@@ -101,7 +100,12 @@ class _Body extends StatelessWidget {
         if (catalog.collections.isNotEmpty)
           SliverToBoxAdapter(child: _Collections(collections: catalog.collections)),
         const SliverToBoxAdapter(child: _Footer()),
-        const SliverToBoxAdapter(child: SizedBox(height: 28)),
+        // Clears the three-button navigation bar. The grid above adds its own
+        // inset, but the footer is the last thing here and it was landing
+        // under the nav buttons on a handset.
+        SliverToBoxAdapter(
+          child: SizedBox(height: 28 + StoreTheme.bottomSafeInset(context)),
+        ),
       ],
     );
   }
@@ -291,23 +295,21 @@ class _Footer extends StatelessWidget {
         children: [
           const Divider(),
           const SizedBox(height: 16),
+          // Filled, so it is the same purple as the hero's Search button. An
+          // outlined variant here read as a second kind of action, and the two
+          // side by side looked like one was important and one was not.
           if (catalog != null)
-            OutlinedButton(
+            FilledButton(
               onPressed: () => openWhatsApp(
                 context: context,
                 number: catalog.store.whatsapp,
                 message: 'Hello, I have a question about your products.',
               ),
-              child: const Text('Message the shop on WhatsApp'),
+              child: Text.rich(
+                whatsappButtonLabel('Message the shop on '),
+              ),
             ),
           const SizedBox(height: 14),
-          TextButton(
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const AboutScreen()),
-            ),
-            child: const Text('About this store'),
-          ),
-          const SizedBox(height: 8),
           Text(
             'Prices in Pakistani rupees. Free delivery over '
             '${(catalog?.store.freeDeliveryOver ?? Price.zero).formatted}.',
