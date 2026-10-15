@@ -39,12 +39,12 @@ lib/
     services/
       catalog_service.dart      fetch, cache, validate, map hits -> products
       search_engine.dart        the SearchEngine interface
-      rust_search_engine.dart   the flutter_rust_bridge implementation
-      whatsapp.dart             wa.me link construction
+      rust_search_engine.dart   dart:ffi binding to the native engine
+      whatsapp.dart             wa.me links, plus the two-toned button label
       launcher.dart             external URL opening
     screens/                    home, shop, product, search, about
     widgets/                    product card/grid, product image
-    theme.dart                  colours, type scale, card height constants
+    theme.dart                  the site's palette, type scale, card metrics
 
 rust/
   Cargo.toml
@@ -64,7 +64,7 @@ scripts/
   bump-site-version.mjs         cache-buster bump + rebuild the site
   build-apk.mjs                 cargo -> jniLibs -> flutter build apk
 
-test/                           Dart unit tests (pure Dart, no Flutter needed)
+test/                           Dart tests: domain logic, theme, grid geometry
 ```
 
 ## Building
@@ -195,8 +195,11 @@ rather than proceeding, and checks `search_model` from the catalog against
 - **No release, no `apkUrl`.** MEMORY.md §6 keeps `apkUrl` empty until a
   `v1.0` release exists, which is correct — it renders an inert control rather
   than a link to nothing.
-- **Nothing has run on a device.** Every claim above is from unit tests and
-  from code review.
+- **The app has run on one device, and device testing found things unit tests
+  did not.** The release build shipped with no `INTERNET` permission (Flutter's
+  template puts it only in the debug manifest), and the product grid overlapped
+  itself by 341px. Both are now covered by tests, but the wider claim stands:
+  one handset is not a test matrix.
 
 ## Third party
 
@@ -204,5 +207,7 @@ rather than proceeding, and checks `search_model` from the catalog against
   `rust/src/engine/`, weights from
   [`wenshutang/ternlight`](https://huggingface.co/wenshutang/ternlight) (MIT).
   See `THIRD_PARTY_TERNLIGHT_LICENSE`.
-- `flutter_rust_bridge` — MIT.
+- `dart:ffi` is in the Dart SDK, so the bridge itself carries no licence. It was
+  built with `flutter_rust_bridge` (MIT) first, which was abandoned — see
+  MEMORY.md §6 for why.
 - `url_launcher`, `path_provider` — BSD-3.

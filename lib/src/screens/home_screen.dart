@@ -17,8 +17,10 @@ import 'shop_screen.dart';
 /// The shop's front door.
 ///
 /// Structure follows the site's index page: the delivery threshold, then the
-/// hero, then collections, then the product grid. Nothing that a shopper has
-/// to dismiss first, and no cart, because there is no cart (MEMORY.md §3).
+/// hero, then the product grid, then collections. Products come first because
+/// the grid is what a shopper came for; collections are the browse-after.
+/// Nothing that a shopper has to dismiss first, and no cart, because there is
+/// no cart (MEMORY.md §3).
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
@@ -63,7 +65,7 @@ class _Body extends StatelessWidget {
           child: SizedBox(
             width: 22,
             height: 22,
-            child: CircularProgressIndicator(strokeWidth: 2, color: StoreTheme.inkFaint),
+            child: CircularProgressIndicator(strokeWidth: 2, color: StoreTheme.inkMuted),
           ),
         );
       }
@@ -73,8 +75,6 @@ class _Body extends StatelessWidget {
     return CustomScrollView(
       slivers: [
         SliverToBoxAdapter(child: _Hero(catalog: catalog)),
-        if (catalog.collections.isNotEmpty)
-          SliverToBoxAdapter(child: _Collections(collections: catalog.collections)),
         SliverToBoxAdapter(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(20, 36, 20, 8),
@@ -98,6 +98,8 @@ class _Body extends StatelessWidget {
             onTap: (p) => _openProduct(context, p),
           ),
         ),
+        if (catalog.collections.isNotEmpty)
+          SliverToBoxAdapter(child: _Collections(collections: catalog.collections)),
         const SliverToBoxAdapter(child: _Footer()),
         const SliverToBoxAdapter(child: SizedBox(height: 28)),
       ],
@@ -137,12 +139,12 @@ class AnnouncementBar extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      color: StoreTheme.ink,
+      color: StoreTheme.surfaceDark,
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       child: Text(
         text,
         textAlign: TextAlign.center,
-        style: const TextStyle(color: Colors.white, fontSize: 12.5, letterSpacing: 0.2),
+        style: const TextStyle(color: StoreTheme.inkOnDark, fontSize: 12.5, letterSpacing: 0.2),
       ),
     );
   }
@@ -169,7 +171,7 @@ class _Hero extends StatelessWidget {
           Text(
             'Stoneware, linen and brass for an already-lived room. '
             'Order over WhatsApp; delivery arranged with you.',
-            style: theme.textTheme.bodyLarge?.copyWith(color: StoreTheme.inkSoft),
+            style: theme.textTheme.bodyLarge?.copyWith(color: StoreTheme.inkBody),
           ),
           const SizedBox(height: 20),
           Row(
@@ -213,7 +215,7 @@ class _Collections extends StatelessWidget {
       children: [
         const Padding(
           padding: EdgeInsets.fromLTRB(20, 34, 20, 12),
-          child: Text('COLLECTIONS', style: TextStyle(fontSize: 11, letterSpacing: 0.8, color: StoreTheme.inkFaint)),
+          child: Text('COLLECTIONS', style: TextStyle(fontSize: 11, letterSpacing: 0.8, color: StoreTheme.inkMuted)),
         ),
         SizedBox(
           height: 178,

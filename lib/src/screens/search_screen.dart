@@ -156,7 +156,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
     if (_busy && _results.isEmpty) {
       return const Center(
-        child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: StoreTheme.inkFaint)),
+        child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: StoreTheme.inkMuted)),
       );
     }
 
@@ -241,7 +241,7 @@ class _Suggestions extends StatelessWidget {
           ListTile(
             contentPadding: EdgeInsets.zero,
             dense: true,
-            leading: const Icon(Icons.north_east, size: 15, color: StoreTheme.inkFaint),
+            leading: const Icon(Icons.north_east, size: 15, color: StoreTheme.inkMuted),
             title: Text(e, style: Theme.of(context).textTheme.bodyLarge),
             onTap: () {
               final field = context.findAncestorStateOfType<_SearchScreenState>();

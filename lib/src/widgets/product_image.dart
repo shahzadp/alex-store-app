@@ -9,9 +9,11 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../theme.dart';
 
 /// Three tints cycle through the catalog. They come from the data, not from
 /// here — this only supplies the fallback for a product with no tint at all.
+/// These are the site's `--tint-1/2/3` values (styles.css:31-33).
 const _fallbackTints = <Color>[Color(0xFFD9CCEA), Color(0xFFCFC3E3), Color(0xFFE3D6EE)];
 
 Color tintOrFallback(String? tint, int seed) {
@@ -104,7 +106,7 @@ class ProductImage extends StatelessWidget {
                   height: 1.3,
                   fontWeight: FontWeight.w500,
                   letterSpacing: 0.3,
-                  color: Color(0xFF4A4152),
+                  color: StoreTheme.placeholderInk,
                 ),
               ),
             ),

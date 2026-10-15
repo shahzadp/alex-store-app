@@ -45,7 +45,7 @@ class ProductCard extends StatelessWidget {
       // with no card chrome, and a ripple needs *something* to sit on.
       splashColor: const Color(0x14000000),
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 18),
+        padding: const EdgeInsets.symmetric(vertical: StoreTheme.cardVerticalPadding),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
@@ -55,8 +55,9 @@ class ProductCard extends StatelessWidget {
               tint: product.tint,
               label: product.name,
               seed: seed,
+              aspectRatio: StoreTheme.cardImageAspect,
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: StoreTheme.cardGapImage),
 
             // Reserved, never grown.
             SizedBox(
@@ -68,7 +69,7 @@ class ProductCard extends StatelessWidget {
                 style: Theme.of(context).textTheme.titleSmall,
               ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: StoreTheme.cardGapName),
 
             SizedBox(
               height: StoreTheme.descriptionHeight,
@@ -79,12 +80,15 @@ class ProductCard extends StatelessWidget {
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: StoreTheme.cardGapDescription),
 
-            // Spacer pushes the price to the bottom of the card, so the price
-            // line sits on one baseline across the whole row.
-            const SizedBox(height: 4),
-            _PriceRow(product: product),
+            // Fixed height, so every price line in the row sits on the same
+            // baseline regardless of whether it is a price or "Sold out".
+            const SizedBox(height: StoreTheme.cardGapPrice),
+            SizedBox(
+              height: StoreTheme.priceRowHeight,
+              child: _PriceRow(product: product),
+            ),
           ],
         ),
       ),
@@ -92,6 +96,11 @@ class ProductCard extends StatelessWidget {
   }
 }
 
+/// Price, with the WhatsApp affordance underneath.
+///
+/// These were on one line and overflowed a two-column cell by 134px: "Order on
+/// WhatsApp" is wider than half a phone. Stacked, the block is a fixed height
+/// that fits any cell width.
 class _PriceRow extends StatelessWidget {
   const _PriceRow({required this.product});
 
@@ -108,14 +117,21 @@ class _PriceRow extends StatelessWidget {
       );
     }
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.baseline,
-      textBaseline: TextBaseline.alphabetic,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Text(product.price.formatted, style: theme.textTheme.titleSmall),
-        const SizedBox(width: 8),
+        Text(
+          product.price.formatted,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: theme.textTheme.titleSmall,
+        ),
+        const SizedBox(height: 2),
         Text(
           'Order on WhatsApp',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: theme.textTheme.labelSmall?.copyWith(
             color: StoreTheme.whatsapp,
             letterSpacing: 0.2,
@@ -128,9 +144,24 @@ class _PriceRow extends StatelessWidget {
 
 /// A grid that keeps its rows even.
 ///
-/// Uses a fixed child aspect ratio rather than `SliverGridDelegateWithMaxCrossAxisExtent`,
-/// which measures children and produces ragged rows the moment one product
-/// has a longer description than its neighbours.
+/// # Why the aspect ratio is derived, not typed in
+///
+/// This used to hard-code `childAspectRatio: 0.66`. That number was wrong by a
+/// wide margin: a two-column card is about 150dp wide, so 0.66 gave a 228dp
+/// cell, while the card's contents are ~340dp tall. Every card therefore
+/// overflowed its slot by more than 100dp and the cards rendered on top of one
+/// another with no visible gap.
+///
+/// A hard-coded ratio cannot be right, because the correct value depends on
+/// the cell width, which depends on the screen. But the card's height is
+/// *knowable*: the name and description slots are fixed height, so the only
+/// variable is the square image, whose height is the cell width. So the grid
+/// computes the exact height the card will need and derives the ratio from it.
+/// `grid_layout_test.dart` pumps this at three screen widths and fails if a
+/// card ever outgrows its cell again.
+///
+/// The result is still uniform by construction: every card gets the same cell,
+/// and the fixed-height text boxes mean content length cannot change it.
 class ProductGrid extends StatelessWidget {
   const ProductGrid({
     super.key,
@@ -143,15 +174,38 @@ class ProductGrid extends StatelessWidget {
   final void Function(Product) onTap;
   final EdgeInsets padding;
 
+  /// Two columns on a phone, three on a tablet, matching the site's grid.
+  static int columnsFor(double width) {
+    if (width >= 900) return 3;
+    return 2;
+  }
+
+  /// The height a card occupies, given a cell width.
+  ///
+  /// Mirrors the widget tree built by [ProductCard]. If one changes, this must
+  /// change with it, which is what `cardFitsItsCell` in the test asserts.
+  static double cardHeightFor(double cellWidth) {
+    return StoreTheme.cardVerticalPadding * 2 +
+        (cellWidth / StoreTheme.cardImageAspect) +
+        StoreTheme.cardGapImage +
+        StoreTheme.nameHeight +
+        StoreTheme.cardGapName +
+        StoreTheme.descriptionHeight +
+        StoreTheme.cardGapDescription +
+        StoreTheme.cardGapPrice +
+        StoreTheme.priceRowHeight;
+  }
+
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        // One column on a phone, two on anything wider — the site does the same
-        // and a two-up grid on a 360dp screen makes the descriptions
-        // unreadable.
-        final columns = constraints.maxWidth >= 560 ? 3 : (constraints.maxWidth >= 380 ? 2 : 1);
-        const spacing = 18.0;
+        final columns = columnsFor(constraints.maxWidth);
+        final spacing = StoreTheme.cardGap;
+        final available = constraints.maxWidth - padding.horizontal;
+        final cellWidth =
+            (available - spacing * (columns - 1)) / columns;
+        final cellHeight = cardHeightFor(cellWidth);
 
         return GridView.builder(
           padding: padding,
@@ -162,10 +216,8 @@ class ProductGrid extends StatelessWidget {
             crossAxisCount: columns,
             mainAxisSpacing: spacing,
             crossAxisSpacing: spacing,
-            // Tall enough for image + two name lines + three description lines
-            // + price row, so the row height is a function of the grid and
-            // never of the content.
-            childAspectRatio: columns == 1 ? 1.9 : 0.66,
+            // Width over height, so the cell is exactly as tall as the card.
+            childAspectRatio: cellWidth / cellHeight,
           ),
           itemBuilder: (context, i) => ProductCard(
             product: products[i],

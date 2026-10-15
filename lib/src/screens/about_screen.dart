@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../catalog_scope.dart';
 import '../models/price.dart';
 import '../services/launcher.dart';
+import '../services/whatsapp.dart';
 import '../theme.dart';
 
 /// About the store.
@@ -77,7 +78,12 @@ class AboutScreen extends StatelessWidget {
                 number: catalog.store.whatsapp,
                 message: 'Hello, I have a question about your products.',
               ),
-              child: const Text('Message the shop on WhatsApp'),
+              child: Text.rich(
+                whatsappButtonLabel(
+                  'Message the shop on ',
+                  base: DefaultTextStyle.of(context).style,
+                ),
+              ),
             ),
           ],
         ],
@@ -101,7 +107,7 @@ class _Block extends StatelessWidget {
         children: [
           Text(title.toUpperCase(), style: Theme.of(context).textTheme.labelSmall),
           const SizedBox(height: 8),
-          Text(body, style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: StoreTheme.inkSoft)),
+          Text(body, style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: StoreTheme.inkBody)),
         ],
       ),
     );

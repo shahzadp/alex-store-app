@@ -271,6 +271,62 @@ Two rules, both learned the hard way:
 Detection is cheap: sweep for `U+FFFD`, the markers `Ã.` / `Â.` / `â€`, and
 control characters, then confirm with `git diff` before committing.
 
+### `ThemeData.copyWith` REPLACES a TextStyle, so a bare `TextStyle()` loses its colour
+
+The home screen rendered its hero heading, the collection titles and the "Shop"
+heading in the wrong colour. Six of the ten text styles were declared with no
+`color` at all:
+
+```dart
+textTheme: base.textTheme.apply(bodyColor: ink, displayColor: ink).copyWith(
+  displaySmall: const TextStyle(fontSize: 30, ...),   // no colour!
+)
+```
+
+`copyWith` **replaces** a style rather than merging it, so the bare
+`TextStyle(fontSize: 30)` discarded the colour `.apply()` had just put there.
+The style then falls back to the ambient `DefaultTextStyle`, which is
+`bodyMedium` — so the headings silently rendered in body-copy grey instead of
+near-black. `theme_test.dart` now asserts every style names its colour.
+
+**A chained `.apply(color).copyWith(style:)` is a lie.** The `.apply()` half
+does nothing, because the `.copyWith()` half throws it away. Name the colour in
+each style instead.
+
+### A hard-coded `childAspectRatio` cannot be right, because the card is taller than its cell
+
+Product cards rendered on top of each other with no gap. The grid was a fixed
+`SliverGridDelegateWithFixedCrossAxisCount(childAspectRatio: 0.66)`. A
+two-column cell is ~150dp wide, so `0.66` asked for a 228dp cell — while the
+card's contents are ~340dp tall (square image + two name lines + three
+description lines + price). Every card overflowed its slot by more than 100dp.
+A widget test at 360dp measured **341px of overflow**; the price row separately
+overflowed 134px sideways, because "Order on WhatsApp" is wider than half a
+phone.
+
+The fix is not a better constant. The card's height is *knowable*: the name and
+description slots are fixed height, so the only variable is the square image,
+whose height is the cell width. So `ProductGrid.cardHeightFor(cellWidth)` sums
+the parts and the grid derives its ratio from the result. It cannot be wrong
+unless a card constant changes, and `grid_layout_test.dart` measures the real
+widget and compares.
+
+The price and "Order on WhatsApp" now stack instead of sharing a line.
+
+### One build produces two identical APKs, and that is not two compiles
+
+`flutter build apk` leaves the APK in two places, byte-identical:
+
+```
+build/app/outputs/apk/release/app-release.apk    written by Gradle
+build/app/outputs/flutter-apk/app-release.apk   copied there by Flutter
+```
+
+Same SHA-256, one second apart — one compile, two copies. Flutter's copy is the
+canonical path (the one the docs and any release step name), so
+`scripts/build-apk.mjs` now hashes both and deletes the Gradle one, failing
+loudly rather than discarding work if they ever diverge.
+
 ---
 
 ## 4. Ordering rules inherited from the store

@@ -4,6 +4,7 @@ import '../catalog_scope.dart';
 import '../services/catalog_service.dart';
 import '../models/catalog.dart';
 import '../services/launcher.dart';
+import '../services/whatsapp.dart';
 import '../theme.dart';
 import '../widgets/product_image.dart';
 
@@ -89,7 +90,7 @@ class ProductScreen extends StatelessWidget {
                   child: SingleChildScrollView(
                     child: Text(
                       product.details.isEmpty ? product.description : product.details,
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: StoreTheme.inkSoft),
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: StoreTheme.inkBody),
                     ),
                   ),
                 ),
@@ -163,7 +164,7 @@ class _Section extends StatelessWidget {
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             color: StoreTheme.surface,
-            border: Border.all(color: StoreTheme.hairline),
+            border: Border.all(color: StoreTheme.line),
             borderRadius: BorderRadius.circular(3),
           ),
           child: child,
@@ -197,7 +198,7 @@ class _SpecsTable extends StatelessWidget {
                 width: 112,
                 child: Text(
                   entries[i].key,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(color: StoreTheme.inkFaint),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(color: StoreTheme.inkMuted),
                 ),
               ),
               const SizedBox(width: 10),
@@ -228,8 +229,8 @@ class _WhatsAppBar extends StatelessWidget {
 
     return Container(
       decoration: const BoxDecoration(
-        color: StoreTheme.paper,
-        border: Border(top: BorderSide(color: StoreTheme.hairline)),
+        color: StoreTheme.bg,
+        border: Border(top: BorderSide(color: StoreTheme.line)),
       ),
       child: SafeArea(
         top: false,
@@ -242,7 +243,13 @@ class _WhatsAppBar extends StatelessWidget {
                     number: catalog?.store.whatsapp ?? '',
                     message: product.whatsappMessage(catalog?.store.whatsapp ?? ''),
                   ),
-                  child: Text('Order on WhatsApp — ${product.price.formatted}'),
+                  child: Text.rich(
+                    whatsappButtonLabel(
+                      'Order on ',
+                      after: ' — ${product.price.formatted}',
+                      base: DefaultTextStyle.of(context).style,
+                    ),
+                  ),
                 )
               : OutlinedButton(
                   onPressed: null,

@@ -11,6 +11,10 @@
 /// WhatsApp is already one tap away from everywhere on the page.
 library;
 
+import 'package:flutter/material.dart';
+
+import '../theme.dart';
+
 /// Builds a `wa.me` link.
 ///
 /// [message] is the pre-written text. It is URL-encoded here rather than at
@@ -23,6 +27,34 @@ String whatsappLink({
 }) {
   final digits = number.replaceAll(RegExp(r'[^0-9]'), '');
   return 'https://wa.me/$digits?text=${Uri.encodeComponent(message)}';
+}
+
+/// A button label with "WhatsApp" picked out in the site's accent green.
+///
+/// The site styles the word rather than the whole button: `.btn-solid` is the
+/// purple accent, and inside it `.wa-word` is `--wa-green-on-accent`
+/// (styles.css:61). The green used on the page background would reach only
+/// 1.65:1 on the purple, so the site carries a lighter green for this surface
+/// and this is where it lives in the app.
+///
+/// [before] and [after] are the plain-text parts, either of which may be empty.
+TextSpan whatsappButtonLabel(
+  String before, {
+  String after = '',
+  TextStyle? base,
+}) {
+  final inherited = base ?? const TextStyle();
+  return TextSpan(
+    style: inherited,
+    children: [
+      if (before.isNotEmpty) TextSpan(text: before),
+      TextSpan(
+        text: 'WhatsApp',
+        style: inherited.copyWith(color: StoreTheme.whatsappOnAccent),
+      ),
+      if (after.isNotEmpty) TextSpan(text: after),
+    ],
+  );
 }
 
 /// The announcement strip text.
