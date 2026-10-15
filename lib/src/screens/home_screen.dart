@@ -64,49 +64,62 @@ class _Body extends StatelessWidget {
           child: SizedBox(
             width: 22,
             height: 22,
-            child: CircularProgressIndicator(strokeWidth: 2, color: StoreTheme.inkMuted),
+            child: CircularProgressIndicator(
+                strokeWidth: 2, color: StoreTheme.inkMuted),
           ),
         );
       }
       return _LoadError(message: state.error);
     }
 
-    return CustomScrollView(
-      slivers: [
-        SliverToBoxAdapter(child: _Hero(catalog: catalog)),
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 36, 20, 8),
-            child: Row(
-              children: [
-                Text('Shop', style: Theme.of(context).textTheme.headlineSmall),
-                const Spacer(),
-                TextButton(
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const ShopScreen()),
+    return RefreshIndicator(
+      // Pull to refresh, so a catalog published while the app is open can be
+      // pulled in without relaunching. Every refresh re-reads catalog.json —
+      // including its vectors — so new products need no app update.
+      onRefresh: () async {
+        await CatalogScope.of(context).load();
+      },
+      color: StoreTheme.accent,
+      backgroundColor: StoreTheme.surface,
+      child: CustomScrollView(
+        slivers: [
+          SliverToBoxAdapter(child: _Hero(catalog: catalog)),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 36, 20, 8),
+              child: Row(
+                children: [
+                  Text('Shop',
+                      style: Theme.of(context).textTheme.headlineSmall),
+                  const Spacer(),
+                  TextButton(
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const ShopScreen()),
+                    ),
+                    child: const Text('All products'),
                   ),
-                  child: const Text('All products'),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
-        ),
-        SliverToBoxAdapter(
-          child: ProductGrid(
-            products: catalog.products,
-            onTap: (p) => _openProduct(context, p),
+          SliverToBoxAdapter(
+            child: ProductGrid(
+              products: catalog.products,
+              onTap: (p) => _openProduct(context, p),
+            ),
           ),
-        ),
-        if (catalog.collections.isNotEmpty)
-          SliverToBoxAdapter(child: _Collections(collections: catalog.collections)),
-        const SliverToBoxAdapter(child: _Footer()),
-        // Clears the three-button navigation bar. The grid above adds its own
-        // inset, but the footer is the last thing here and it was landing
-        // under the nav buttons on a handset.
-        SliverToBoxAdapter(
-          child: SizedBox(height: 28 + StoreTheme.bottomSafeInset(context)),
-        ),
-      ],
+          if (catalog.collections.isNotEmpty)
+            SliverToBoxAdapter(
+                child: _Collections(collections: catalog.collections)),
+          const SliverToBoxAdapter(child: _Footer()),
+          // Clears the three-button navigation bar. The grid above adds its own
+          // inset, but the footer is the last thing here and it was landing
+          // under the nav buttons on a handset.
+          SliverToBoxAdapter(
+            child: SizedBox(height: 28 + StoreTheme.bottomSafeInset(context)),
+          ),
+        ],
+      ),
     );
   }
 
@@ -148,7 +161,8 @@ class AnnouncementBar extends StatelessWidget {
       child: Text(
         text,
         textAlign: TextAlign.center,
-        style: const TextStyle(color: StoreTheme.inkOnDark, fontSize: 12.5, letterSpacing: 0.2),
+        style: const TextStyle(
+            color: StoreTheme.inkOnDark, fontSize: 12.5, letterSpacing: 0.2),
       ),
     );
   }
@@ -175,7 +189,8 @@ class _Hero extends StatelessWidget {
           Text(
             'Stoneware, linen and brass for an already-lived room. '
             'Order over WhatsApp; delivery arranged with you.',
-            style: theme.textTheme.bodyLarge?.copyWith(color: StoreTheme.inkBody),
+            style:
+                theme.textTheme.bodyLarge?.copyWith(color: StoreTheme.inkBody),
           ),
           const SizedBox(height: 20),
           Row(
@@ -219,7 +234,11 @@ class _Collections extends StatelessWidget {
       children: [
         const Padding(
           padding: EdgeInsets.fromLTRB(20, 34, 20, 12),
-          child: Text('COLLECTIONS', style: TextStyle(fontSize: 11, letterSpacing: 0.8, color: StoreTheme.inkMuted)),
+          child: Text('COLLECTIONS',
+              style: TextStyle(
+                  fontSize: 11,
+                  letterSpacing: 0.8,
+                  color: StoreTheme.inkMuted)),
         ),
         SizedBox(
           height: 178,
@@ -228,7 +247,8 @@ class _Collections extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 20),
             itemCount: collections.length,
             separatorBuilder: (_, __) => const SizedBox(width: 12),
-            itemBuilder: (context, i) => _CollectionTile(collection: collections[i], seed: i),
+            itemBuilder: (context, i) =>
+                _CollectionTile(collection: collections[i], seed: i),
           ),
         ),
       ],

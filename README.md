@@ -57,16 +57,22 @@ rust/
     assets/                     tokenizer.json (committed); model.bin (fetched)
 
 scripts/
-  extract-model-from-wasm.mjs    recover + SHA-256 verify the weights
-  extract-site-vectors.mjs      pull vectors out of catalog.sql -> test fixture
-  check-vectors-agree.mjs       catalog.json and catalog.sql must agree
+  publish-catalog.mjs           ONE command: rebuild vectors, bump, publish
   regen-catalog-json.mjs        run the site's own db.js in Node to re-export
-  patch-store-catalog-json.mjs  one-shot patch of the site's db.js
+  check-vectors-agree.mjs       catalog.json and catalog.sql must agree
   bump-site-version.mjs         cache-buster bump + rebuild the site
+  extract-model-from-wasm.mjs   recover + SHA-256 verify the model weights
+  extract-site-vectors.mjs      pull vectors out of catalog.sql -> test fixture
+  check-vendor-clean.mjs        vendored engine must match upstream, byte for byte
   build-apk.mjs                 cargo -> jniLibs -> flutter build apk
+  render-launcher-icons.mjs     assets/icon/app_icon.svg -> the Android mipmaps
+  reference-forward.mjs         independent JS port of the engine's forward pass
+  patch-store-catalog-json.mjs  one-shot patch of the site's db.js
+  generate-wasm-fixture.mjs     regenerate the parity fixture from the site WASM
 
 test/                           Dart tests: domain, theme, grid, links
 docs/
+  CATALOG-WORKFLOW.md           how to change the catalog and publish it
   APP-LINKS.md                  how to make links open the app automatically
   assetlinks.json               the file to publish, and its warnings
 ```

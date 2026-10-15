@@ -76,9 +76,11 @@ class CatalogService {
     Future<String?> Function()? readCache,
     Future<void> Function(String)? writeCache,
     this.timeout = const Duration(seconds: 20),
+    Future<String> Function(String url, Duration timeout)? fetcher,
   })  : engine = engine ?? RustSearchEngine(),
         _readCache = readCache,
-        _writeCache = writeCache;
+        _writeCache = writeCache,
+        _fetcher = fetcher;
 
   final SearchEngine engine;
   final String url;
@@ -86,6 +88,13 @@ class CatalogService {
 
   final Future<String?> Function()? _readCache;
   final Future<void> Function(String)? _writeCache;
+
+  /// Overrides the real HTTP transport.
+  ///
+  /// A seam for tests, so a refresh can be driven with a rewritten catalog
+  /// instead of a live server. Everything below it — parsing, validation, cache
+  /// write, index load — is the production code.
+  final Future<String> Function(String url, Duration timeout)? _fetcher;
 
   CatalogState _state = CatalogState.empty;
   CatalogState get state => _state;
@@ -113,13 +122,30 @@ class CatalogService {
     var source = CatalogSource.none;
 
     try {
-      raw = await _fetch(url);
+      raw = await (_fetcher?.call(url, timeout) ?? _fetch(url));
       source = CatalogSource.network;
     } catch (networkError) {
       // Offline, DNS failure, 404, a captive portal serving HTML — all of
       // these land here. The cached copy is always better than an error page.
       raw = await _loadCache();
       if (raw == null) {
+        // If a catalog is ALREADY loaded, a failed refresh must keep it.
+        //
+        // This is the pull-to-refresh case: the shopper has a good catalog on
+        // screen and the network drops mid-refresh. Emitting a null catalog
+        // replaces the storefront with an error screen, which reads as "your
+        // store is gone" rather than "you are offline". The catalog is kept and
+        // the error is reported alongside it, so they can still browse.
+        final alreadyLoaded = _state.catalog;
+        if (alreadyLoaded != null) {
+          _emit(CatalogState(
+            catalog: alreadyLoaded,
+            source: _state.source,
+            isLoading: false,
+            error: 'Could not reach the store. Showing the last one you saw.',
+          ));
+          return _state;
+        }
         _emit(CatalogState(
           catalog: null,
           source: CatalogSource.none,

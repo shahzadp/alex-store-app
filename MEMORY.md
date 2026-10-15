@@ -442,6 +442,51 @@ has. `viewPadding` is the raw window inset and survives.
 **A hard-coded bottom pad is a guess.** Nothing in the app may assume the
 navigation bar is a particular height.
 
+### `generated_at` changes on every regeneration, so comparing catalog.json raw text always reports "changed"
+
+`catalog.json` is stamped by the site on export, so regenerating it with no edit
+writes a different file — same products, same vectors, new timestamp. Any
+"did the catalog change?" check that compares the raw text therefore says yes
+forever, and a publish script built on it commits a point-zero change every time
+it is run.
+
+`scripts/publish-catalog.mjs` strips `generated_at` before comparing, and puts
+the original file back when nothing real changed. Vectors regenerate
+byte-identically — verified by regenerating and diffing all 8 — which is what
+makes this a valid comparison to make.
+
+### A failed refresh used to blank the storefront instead of keeping the catalog
+
+`CatalogService.load` did this when the network failed and there was no cached
+copy: emit `catalog: null`. Correct on first launch. Wrong on **refresh**, where
+a good catalog was already on screen and a mid-refresh network drop replaced the
+whole storefront with an error. The shopper reads that as "your store is gone",
+not "you are offline".
+
+Now it emits the existing catalog with the error alongside it, so the store stays
+browsable. `test/catalog_refresh_test.dart` covers both directions, and is
+written against the real service with only the transport swapped.
+
+### Publishing a catalog is ONE command, and the app needs no update
+
+`node scripts/publish-catalog.mjs` rebuilds `catalog.json` from `catalog.sql`
+(vectors included), checks the two agree, shows the diff, bumps the site
+cache-buster, commits, pushes, and waits for Pages to serve the result. It
+replaced four separate commands in two repos, two of which fail silently when
+skipped: skip the cache-buster and the *website* serves a stale copy while the
+app is fine; skip check-vectors-agree and `catalog.json` can disagree with
+`catalog.sql`.
+
+Installed apps pick the change up on their next launch, or immediately with
+pull-to-refresh. No app release — because the split is:
+
+| baked into the APK | shipped in catalog.json |
+| --- | --- |
+| model weights, tokenizer, engine | product vectors and all product text |
+
+**Changing the model is the one exception**, and the only case that needs a new
+APK. The app refuses to search on a model mismatch rather than ranking wrongly.
+
 ---
 
 ## 4. Ordering rules inherited from the store
