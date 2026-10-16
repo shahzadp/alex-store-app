@@ -69,6 +69,7 @@ scripts/
   extract-site-vectors.mjs      pull vectors out of catalog.sql -> test fixture
   check-vendor-clean.mjs        vendored engine must match upstream, byte for byte
   build-apk.mjs                 cargo -> jniLibs -> flutter build apk
+  verify-release-apk.mjs        prove the built APK is signed, obfuscated, searchable
   render-launcher-icons.mjs     assets/icon/app_icon.svg -> the Android mipmaps
   reference-forward.mjs         independent JS port of the engine's forward pass
   patch-store-catalog-json.mjs  one-shot patch of the site's db.js
@@ -100,6 +101,47 @@ No codegen step and no `cargo install`. The Dart boundary is hand-written:
 
 Outputs land in `build/app/outputs/flutter-apk/`.
 
+### Release signing and R8
+
+Release builds are signed with `android/app/release-keystore.jks`, read through
+`android/key.properties`. Neither file is committed (`.gitignore` covers both),
+so a fresh clone cannot produce a release APK — the build stops with instructions
+rather than quietly falling back to something else.
+
+That fallback is what this project used before, and it is worth spelling out why
+it was wrong. The Android debug keystore is a public file whose password is
+literally `android`, so a "release" APK signed with it can be re-signed by anyone
+and Android accepts the forgery as an official update. It also cannot be upgraded
+past: Android refuses to install an update whose signing key differs, so every
+install of a debug-signed build has to be removed before a properly-signed one
+will go on. Release builds carry APK Signature Scheme v3 as well as v2, so *this*
+key can be rotated later without that surgery.
+
+R8 then shrinks and obfuscates the Java/Kotlin bytecode. It cannot affect the
+semantic search path, and `android/app/proguard-rules.pro` sets out why at
+length: R8 only rewrites JVM bytecode, whereas search is `dart:ffi` — Dart
+resolves ten symbols out of `libalex_store_native.so` from string literals at
+runtime, and `rust/src/ffi.rs` exports them as plain `extern "C"` with no JNI, so
+there is no class or method name in the search path for R8 to rename. The rules
+file is almost empty on purpose.
+
+None of that is left as an assertion:
+
+```bash
+node scripts/build-apk.mjs
+node scripts/verify-release-apk.mjs
+```
+
+The verifier reads its expectations out of the repository rather than carrying
+its own copies, and checks the built artifact: the signing certificate against
+`docs/assetlinks.json`; that R8 ran *and* never saw an FFI symbol name; that
+every symbol in `native_engine.dart` is both exported by the `.so` and still
+present as a string in the Dart AOT snapshot; that the model is embedded
+byte-for-byte and matches its own checksum; that every packaged ABI has a real
+Flutter engine behind it; and that `GeneratedPluginRegistrant` — which Flutter
+looks up with `Class.forName`, so a rename would silently disable every plugin —
+kept its name.
+
 ### `model.bin` is not in this repository
 
 A fresh clone has no weights, and `cargo build` fails on `include_bytes!` until
@@ -109,15 +151,31 @@ you fetch them:
 node scripts/extract-model-from-wasm.mjs
 ```
 
-It downloads `model-int4.bin` from HuggingFace and verifies it against the
-SHA-256 in `rust/src/assets/model-int4.bin.json`, which **is** committed. That
-manifest is the reason this is safe — a checksum catches a corrupted download,
-which a committed blob could not.
+It rebuilds the file out of `@ternlight/base`'s WASM. It does **not** download
+HuggingFace's `model-int4.bin`: that is a different model (d256 internally) which
+happens to produce the same 384-dim output width, and the site's vectors were not
+built with it.
 
-4.6 MB of binary in permanent git history for an artifact that is obtainable
-and verifiable is a poor trade, and the Store repo's MEMORY.md §3 makes the
-same argument about the APK. `tokenizer.json` (694 KB) *is* committed, because
-it is upstream source rather than a build artifact.
+The recovery is not a slice, and the obvious version of it is a trap worth
+knowing about. A WASM data segment is laid out in the file as
+`[flags][offset][size][payload]`, but the engine reads **linear memory**, where
+the payloads sit contiguously at their declared addresses. So cutting the file at
+the `TERN` magic splices segment headers into the weights. The result still
+loads, still returns unit-length vectors, and still passes a checksum the
+extractor itself recomputed — it is simply wrong, and nothing downstream can
+tell. The script rebuilds linear memory from the data section and chooses the
+candidate address by requiring the 32 bytes *after* the body to be its SHA-256.
+
+What makes this safe is that the model carries its own checksum: the last 32
+bytes hash everything before them, and
+`rust/src/engine/format.rs::verify_sha256` recomputes exactly that at load. A
+corrupted or half-recovered file cannot get far enough to produce a ranking.
+`--check` re-derives the file and compares it against what is on disk.
+
+7.5 MB of binary in permanent git history for an artifact that is obtainable and
+verifiable is a poor trade, and the Store repo's MEMORY.md §3 makes the same
+argument about the APK. `tokenizer.json` (694 KB) *is* committed, because it is
+upstream source rather than a build artifact.
 
 ### The parity test
 
@@ -207,15 +265,25 @@ rather than proceeding, and checks `search_model` from the catalog against
   scalar fallback; native ARM takes the scalar path. Correct, but slower than
   the site. A `core::arch::aarch64` implementation is the obvious next
   optimisation. See `docs/PERF.md`.
-- **`android/` is not generated yet.** It comes from `flutter create`.
-- **No release, no `apkUrl`.** MEMORY.md §6 keeps `apkUrl` empty until a
-  `v1.0` release exists, which is correct — it renders an inert control rather
-  than a link to nothing.
+- **Automatic link opening needs a repository that does not exist.** The intent
+  filter and `autoVerify` are shipped and the chooser works; Android only skips
+  the chooser when it can fetch
+  `https://shahzadp.github.io/.well-known/assetlinks.json`, which sits at the
+  *domain* root and so is not something a Pages project repo under `/store/` can
+  serve. `docs/APP-LINKS.md` has the whole story. No code change is needed once
+  that file is reachable.
+- **arm64 only.** `libalex_store_native.so` is built for `arm64-v8a`, and the APK
+  packages exactly the ABIs the engine was built for, so it no longer advertises
+  ABIs it cannot run. On an x86_64 emulator the app installs and browses with
+  search disabled (`engineUnavailable`); `node scripts/build-apk.mjs --abis
+  android-x64` fixes that for local work.
 - **The app has run on one device, and device testing found things unit tests
   did not.** The release build shipped with no `INTERNET` permission (Flutter's
   template puts it only in the debug manifest), and the product grid overlapped
   itself by 341px. Both are now covered by tests, but the wider claim stands:
-  one handset is not a test matrix.
+  one handset is not a test matrix. For the same reason, the R8-obfuscated build
+  has not been run on hardware — what is verified about it is the artifact, not
+  the phone.
 
 ## Third party
 

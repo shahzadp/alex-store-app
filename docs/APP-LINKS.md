@@ -34,28 +34,29 @@ the moment the file is reachable.
 Either create the user-site repo, or put a custom domain in front of the
 storefront. Then publish `docs/assetlinks.json` at the well-known path.
 
-Use the file as-is only if you keep the current signing setup. The fingerprint
-in it is:
+The fingerprint in that file is the real release key's:
 
 ```
-5C:E3:40:89:...:88:D2
+DA:5B:48:50:1D:CE:D4:5D:35:C7:5B:EC:8D:F0:D8:45:CF:8E:2C:19:4B:FC:D8:A6:DD:ED:AB:9B:D1:02:1A:C2
 ```
 
-which is the **debug** keystore's, because
-`android/app/build.gradle.kts` signs release builds with `signingConfigs
-.getByName("debug")`.
+which belongs to `android/app/release-keystore.jks`. Release builds read it via
+`android/key.properties`; neither file is committed, so a fresh clone has no
+release identity until one is supplied — and the build refuses to produce a
+release APK without one rather than falling back to something else. See the top
+of `android/app/build.gradle.kts`.
 
-**Before publishing, create a real release keystore.** The debug fingerprint is
-generated per machine, so it will not match on another computer, and anyone can
-generate a debug keystore — publishing it means any app signed with any debug
-keystore on any machine can claim your links.
+Earlier this file carried the **debug** keystore's fingerprint, because release
+builds were signed with `signingConfigs.getByName("debug")`. Publishing that
+would have been a quiet version of the same mistake the fingerprint is meant to
+prevent: the debug key is generated per machine and its password is literally
+`android`, so any app signed with any debug keystore anywhere could have claimed
+these links. It also meant the first release could never have been upgraded —
+Android refuses to install an update whose signing key differs, so every install
+of the debug-signed build would have had to be removed first.
 
-```bash
-keytool -genkey -v -keystore release.jks -keyalg RSA -keysize 2048 \
-        -validity 10000 -alias alex-store
-keytool -list -v -keystore release.jks -alias alex-store | grep SHA256
-```
-
-Put the new fingerprint in `docs/assetlinks.json`, and point
-`android/app/build.gradle.kts` at `release.jks` (read it from
-`key.properties`, which must not be committed).
+**If the keystore is ever rotated, this fingerprint has to move with it**, in
+the same commit as the new key, or the chooser comes back for everyone.
+`node scripts/verify-release-apk.mjs` compares the built APK's certificate
+against this file and fails when they disagree, which is how the staleness that
+used to be here would now be caught.

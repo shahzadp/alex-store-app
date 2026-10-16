@@ -11,7 +11,8 @@ self-contained.
 
 ## 1. Current state
 
-- Flutter app, Android target, five screens: home, shop, product, search, about.
+- Flutter app, Android target, four screens: home, shop, product, search. (The
+  About screen was removed; see §3.)
 - Reads the site's `catalog.json` on every launch; caches a copy for offline.
 - Search: ternlight `base@0.1.1`, **compiled to native Rust** and called over
   `dart:ffi`, ranking the site's published vectors. The boundary is
@@ -20,12 +21,17 @@ self-contained.
   `flutter_rust_bridge` was dropped.
 - The site's `catalog.json` now carries those vectors. It did not until
   `scripts/patch-store-catalog-json.mjs` ran.
-- **The Rust crate builds and its tests run** (19 green, including parity).
-  The Dart side is still design-only: no Flutter SDK build, no device, no
-  emulator.
-- **Search now matches the site.** The native engine reproduces the WASM's
-  vectors bit-exactly (worst per-dimension difference `0.000e+0`), so the app's
-  rankings are the site's rankings. See §3.
+- **Search matches the site.** The native engine reproduces the WASM's vectors
+  bit-exactly (worst per-dimension difference `0.000e+0`), so the app's rankings
+  are the site's rankings. See §3.
+- **The release is signed with a real key and obfuscated with R8.** `v1.0` is
+  published and the site's button delivers it. See §3, "Signed with a real key,
+  and R8 could not have touched the search path".
+- **What is proven and what is not:** analyze clean, 87 Dart tests, 9 Rust parity
+  tests, and 24 checks against the built APK
+  (`scripts/verify-release-apk.mjs`). None of that is a phone, though. One
+  handset has ever run this app, and it has not run the R8-obfuscated build at
+  all.
 
 ---
 
@@ -567,9 +573,146 @@ binary that was tested, not something that merely has the right name.
 that `api.github.com` was blocked no longer applies. `gh release create` needs
 no separate setup; it uses the keyring account.
 
+**Replacing the asset is NOT `gh release upload v1.0 <built path> --clobber`.**
+`--clobber` matches on the *local filename*, not on the asset it is meant to
+replace. The build output is `app-release.apk`, so that command quietly added a
+**second** asset named `app-release.apk` and left `alex-store.apk` — the name the
+site's URL ends in — untouched. The button went on serving the old APK while the
+release page showed the new one, which is a genuinely confusing state. Stage the
+file under the right name first:
+
+```bash
+cp build/app/outputs/flutter-apk/app-release.apk /tmp/alex-store.apk
+gh release upload v1.0 /tmp/alex-store.apk --clobber
+gh release delete-asset v1.0 app-release.apk --yes   # undo the mistake
+```
+
+Then expect a stale **edge cache** to keep serving the old bytes for a minute or
+two. Right after the swap, `repos/.../releases/tags/v1.0` and `gh release
+download` both reported the new asset while a plain GET of
+`.../releases/download/v1.0/alex-store.apk` still returned the old one, with
+`Age: 30` and `X-Cache: MISS, HIT` in the headers — Fastly, not GitHub's API.
+It cleared on its own. The way to tell a cache from a real problem is exactly
+that disagreement: the API and `gh release download` are authoritative, the
+plain GET is not.
+
 The `_apkUrlNote` field was deleted from `build.config.json`. It documented the
 inert-control behaviour for a state that no longer applies, and leaving it would
 suggest an empty `apkUrl` is still the expected configuration.
+
+### Signed with a real key, and R8 could not have touched the search path
+
+`android/app/build.gradle.kts` used to sign release builds with
+`signingConfigs.getByName("debug")`. Two things were wrong with that, and only
+the first is obvious.
+
+The obvious one: the Android debug keystore is a public file — every SDK install
+has the same one and its password is literally `android` — so anyone could have
+built an APK that Android would accept as an update to this app.
+
+The one that bites later: **Android refuses to install an update whose signing
+key differs.** So the moment a real key appeared, every existing install would
+have had to be uninstalled first. That trap springs exactly once, and it springs
+whenever it is finally addressed — which is why swapping the key was worth doing
+immediately rather than at the next release.
+
+Now: a real RSA-4096 key in `android/app/release-keystore.jks`, used through
+`android/key.properties`, both gitignored (the `.gitignore` entries were already
+there). Release builds also carry APK Signature Scheme **v3**, not just v2 — v3
+is what carries a key's rotation history, so *this* key can be rotated later
+without that surgery. `enableV3Signing = true` is explicit, because AGP does not
+enable it by default; the verifier fails if it goes missing. A release build with
+no keystore now **stops with instructions** rather than quietly falling back to
+the debug key.
+
+#### Why R8 is not a threat here, and why that is checked rather than asserted
+
+Enabling obfuscation invites the worry that R8 will mangle the FFI symbol names
+and silently break search. It cannot, and the reason is structural:
+
+- R8 rewrites **JVM bytecode only**. Search is `dart:ffi`:
+  `lib/src/services/native_engine.dart` resolves ten symbols (`alex_search`,
+  `alex_embed`, …) from **string literals at runtime**, and those literals are
+  compiled into the Dart AOT snapshot.
+- `rust/src/ffi.rs` is `extern "C"` + `#[no_mangle]` throughout, with no
+  `JNI_OnLoad` and no `Java_…` export. There is no class or method name anywhere
+  in the search path for R8 to rename. That is a direct dividend of hand-writing
+  the boundary rather than generating it — see §6.
+
+The shrinker that *could* have broken the FFI path is Dart's own AOT
+tree-shaker, not R8, and `libapp.so` is checked for all ten strings.
+
+It follows that `android/app/proguard-rules.pro` needs almost no rules, and it
+has almost none. The rules that matter come from elsewhere and apply
+automatically:
+
+- Flutter's Gradle plugin adds
+  `$FLUTTER/packages/flutter_tools/gradle/flutter_proguard_rules.pro` to the
+  release build type (`FlutterPlugin.kt`). That keeps every `FlutterPlugin`
+  implementation, which is how `app_links`, `path_provider` and `url_launcher`
+  survive.
+- `GeneratedPluginRegistrant` must keep its **name**: Flutter's embedding finds
+  it with `Class.forName("io.flutter.plugins.GeneratedPluginRegistrant")` from
+  `GeneratedPluginRegister.class` and then calls `registerWith` by name. It is
+  `@Keep`-annotated, and AGP's `proguard-android-optimize.txt` honours that, so
+  no rule is needed. If the name *were* obfuscated, no plugin would register: the
+  app would open, browse and search, but WhatsApp would not open, the offline
+  catalog would not load and deep links would not work — with no error message,
+  and nothing about the symptom that looks like obfuscation.
+- `path_provider_android` 2.3.x depends on the **`jni`** package, whose Android
+  library ships `consumer-rules.pro` via `consumerProguardFiles`. AGP applies a
+  library's consumer rules automatically. That package does use JNI; the search
+  engine does not.
+
+R8 emitted **zero warnings**, which is why `proguard-rules.pro` has no
+`-dontwarn com.google.android.play.core.**`. That line is cargo-culted into
+Flutter projects routinely; here the build says it is not needed. 683 of 740
+classes were renamed.
+
+#### `scripts/verify-release-apk.mjs`
+
+A claim about obfuscation ages badly, so it is checked against the artifact
+instead. The script reads its expectations out of the repository — symbol names
+from `native_engine.dart`, the certificate from `docs/assetlinks.json`, model
+hashes from `model-from-wasm.json` — so adding a symbol to the engine adds a
+check automatically, and the expectations cannot drift from the code. 24 checks:
+
+- the signing certificate matches `assetlinks.json` and is not the debug key; v2
+  and v3 present; v1 absent is *correct* at minSdk 24, and that is asserted in
+  both directions rather than only one.
+- R8 ran (683/740 renamed) and **no FFI symbol name appears anywhere in
+  `mapping.txt`**.
+- every symbol is exported by the packaged `.so` (`llvm-nm`) **and** still a
+  string in `libapp.so`.
+- the model is embedded in the `.so` and satisfies its own SHA-256.
+- every packaged ABI has both `libflutter.so` and `libapp.so`.
+- `GeneratedPluginRegistrant`, `registerWith` and `MainActivity` all still exist
+  in the DEX by name.
+
+The ABI check earned its place by finding something real. `jni_flutter` ships
+`libdartjni.so` for arm64, armv7 and x86_64, so the APK contained `armeabi-v7a/`
+and `x86_64/` directories holding *only* that library, even though Flutter was
+told to build arm64 alone. Android read those directories as support, would
+install on such a device, and the app would die at launch because `libflutter.so`
+was never built for it. Fixed by deriving `abiFilters` from whatever
+`build-apk.mjs` left in `jniLibs`, so the APK advertises exactly what it can run.
+That also took the APK from 27.69 MB to 27.49 MB.
+
+The check that looked most like confirmation bias turned out to be the other real
+find. `rust/src/assets/model-from-wasm.json` recorded a `sha256` and `bytes` that
+matched nothing on disk, because it documented the **wrong** extraction — the
+file-shaped slice that `extract-model-from-wasm.mjs`'s own notes identify as
+producing a file that still loads, still passes a checksum the extractor
+recomputed, and still returns unit-length vectors. `model.bin` itself was fine:
+`--check` reproduces it from the WASM byte for byte, and it satisfies its own
+trailing SHA-256. The provenance record was the stale thing. Corrected, and the
+verifier now cross-checks the two, so it cannot rot again in silence.
+
+**What this does not prove.** There was no emulator and no device, so none of the
+above is a phone running the obfuscated build. What is verified is the artifact:
+the exact bytes that get published, containing the exact `.so` the app will
+`dlopen` and resolve symbols from. That is a large part of the claim — but "R8
+did not break search on a handset" still needs a handset.
 
 ---
 
@@ -603,6 +746,7 @@ node scripts/extract-site-vectors.mjs        # refresh the fixture first
 cd .. && node scripts/check-vectors-agree.mjs # catalog.json == catalog.sql
 
 node scripts/build-apk.mjs
+node scripts/verify-release-apk.mjs           # must be 24/24 before publishing
 ```
 
 ### Touching the site
@@ -622,12 +766,10 @@ anything is pushed.
 
 **Blocking**
 
-- [ ] **Build the Android `.so` and the APK.** `cargo build --release --target
-      aarch64-linux-android`, then `flutter build apk`. The GNU host toolchain is
-      required for build scripts (see `rust/.cargo/config.toml`), and the target
-      must be installed *for that toolchain* — rustup keeps targets per
-      toolchain, so `aarch64-linux-android` being present under `msvc` does not
-      help.
+- [ ] **Run the signed, obfuscated APK on a device.** Everything about it is
+      verified at the artifact level (§3); nothing has been *executed* on
+      hardware. This is the one part of the claim `verify-release-apk.mjs` cannot
+      make for you.
 - [x] ~~Find the forward-pass divergence~~ — solved, see §3.
 
 ### The bridge is hand-written, not generated
@@ -673,6 +815,19 @@ Both files are a pair: change one, change the other.
       engine; see §3.
 - [x] ~~Fix the 192-byte section misalignment~~ — that diagnosis was wrong and
       has been reverted. Those 192 bytes are embedding row 0.
+- [x] ~~Build the Android `.so` and the APK~~ — `scripts/build-apk.mjs` is the
+      whole pipeline. The GNU host toolchain is required for build scripts (see
+      `rust/.cargo/config.toml`) and the target must be installed *for that
+      toolchain*: rustup keeps targets per toolchain, so `aarch64-linux-android`
+      under `msvc` does not help.
+- [x] ~~Release, then set `apkUrl`~~ — `v1.0` is published as a release asset and
+      `../Store/build.config.json` points at the `latest` URL.
+- [x] ~~Sign with a real key, and turn on R8~~ — done, and verified against the
+      built artifact rather than asserted; see §3.
+- [x] ~~Decide `armv7`~~ — not shipping it, and no longer *claiming* it either.
+      `abiFilters` is derived from what `build-apk.mjs` leaves in `jniLibs`, so
+      the APK advertises exactly the ABIs the engine was built for.
+      `--abis android-arm,x64` still builds others on demand.
 
 **Should do**
 
@@ -681,17 +836,16 @@ Both files are a pair: change one, change the other.
 - [ ] **Wire up `path_provider`.** `CatalogService` takes `readCache`/
       `writeCache` callbacks for exactly this and nothing passes them yet, so
       offline mode does not work.
-- [ ] **Decide `armv7`.** The engine targets 64-bit clean; 32-bit Android is
-      a vanishing share. `build-apk.mjs` can build it but nothing says it
-      should ship.
-- [ ] **Release, then set `apkUrl`.** `../Store/build.config.json` keeps
-      `apkUrl` empty until a `v1.0` release exists, which is correct — it
-      renders an inert control rather than a link to nothing.
 
 **Housekeeping**
 
-- [ ] No CI. `cargo test` plus the Node scripts would catch a stale fixture or
-      a catalog that stopped being searchable.
+- [ ] No CI. `cargo test`, `flutter test` and `verify-release-apk.mjs` would
+      catch a stale fixture, a catalog that stopped being searchable, or an R8
+      rule that quietly stopped applying.
+- [ ] Back up `android/app/release-keystore.jks` and `android/key.properties`.
+      They are gitignored, so git is not a backup, and losing them means this app
+      can never be updated again — only re-released under a new identity, which
+      every existing install would have to uninstall first.
 - [ ] The site repo is a sibling checkout, not a submodule. The scripts assume
       `../Store`. Worth pinning or vendoring at some point.
 
@@ -707,6 +861,10 @@ Both files are a pair: change one, change the other.
 | Dart FFI bindings | `lib/src/services/native_engine.dart` |
 | Vendored ternlight engine | `rust/src/engine/` (do not edit) |
 | Parity test | `rust/tests/parity.rs` |
+| Release signing, R8, `abiFilters` | `android/app/build.gradle.kts` |
+| R8 rules (deliberately near-empty) | `android/app/proguard-rules.pro` |
+| Release APK verification | `scripts/verify-release-apk.mjs` |
+| App Links fingerprint | `docs/assetlinks.json` |
 | Model recovery + SHA-256 | `scripts/extract-model-from-wasm.mjs` |
 | Fixture extraction | `scripts/extract-site-vectors.mjs` |
 | Domain model | `lib/src/models/catalog.dart` |

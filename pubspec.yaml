@@ -7,7 +7,12 @@ publish_to: "none"
 # tag in the repo — MEMORY.md §6 uses the `latest` tag so the APK URL never
 # changes, which means the version here is the only place a user-visible
 # version number lives.
-version: 0.1.0+1
+#
+# Was 0.1.0+1, which matched nothing: the published release is tagged v1.0, so
+# the APK's reported versionName disagreed with the release it came from. Same
+# reason the build number is not bumped here — this is the v1.0 artifact being
+# built properly (real key, R8), not a new version of it.
+version: 1.0.0+1
 
 environment:
   sdk: ">=3.5.0 <4.0.0"
