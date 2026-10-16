@@ -52,6 +52,21 @@ console.log(`product_vectors in sql : ${sqlSlugs.size}`);
 const missing = json.products.filter((p) => !sqlSlugs.has(p.slug)).map((p) => p.slug);
 if (missing.length) bad.push(`in catalog.json but not catalog.sql: ${missing.join(', ')}`);
 
+// The direction this check used to miss. It only ever walked the JSON side, so
+// a product added to catalog.sql but not yet re-exported reported 8/8 and
+// passed, even though catalog.json was one product short. That is the exact
+// failure this script exists to catch, and the direction it is easiest to hit:
+// add the product, forget to regenerate.
+const productsBlock = /INSERT INTO products \([^)]*\) VALUES([\s\S]*?);/.exec(sql);
+const productSlugs = new Set(
+  [...(productsBlock?.[1] ?? '').matchAll(/\('([a-z0-9-]+)'/g)].map((x) => x[1]),
+);
+const notExported = [...productSlugs].filter((s) => !json.products.some((p) => p.slug === s));
+console.log(`products in sql        : ${productSlugs.size}`);
+if (notExported.length) {
+  bad.push(`in catalog.sql but NOT in catalog.json (run regen/publish): ${notExported.join(', ')}`);
+}
+
 if (bad.length) {
   console.error('\nMISMATCH:');
   for (const b of bad) console.error(`  - ${b}`);

@@ -163,23 +163,35 @@ if (!changed) {
   process.exit(0);
 }
 
-const beforeSlugs = new Set(beforeJson.products.map((p) => p.slug));
-const afterSlugs = new Set(afterJson.products.map((p) => p.slug));
-const added = [...afterSlugs].filter((s) => !beforeSlugs.has(s));
-const removed = [...beforeSlugs].filter((s) => !afterSlugs.has(s));
-const renamed = afterJson.products.filter(
-  (p, i) => beforeSlugs.has(p.slug) && p.name !== beforeJson.products[i]?.name,
-);
+// Compare by slug, NOT by index. Products are not in a stable order —
+// createProduct inserts by sort_order, so adding one shifts the array and an
+// index comparison reports every product after the insertion point as renamed.
+// That is exactly what happened: a new pitcher reported "~ Brass Tray", which is
+// noise in a diff a human is being asked to trust.
+const beforeBySlug = new Map(beforeJson.products.map((p) => [p.slug, p]));
+const afterBySlug = new Map(afterJson.products.map((p) => [p.slug, p]));
+const added = [...afterBySlug.keys()].filter((s) => !beforeBySlug.has(s));
+const removed = [...beforeBySlug.keys()].filter((s) => !afterBySlug.has(s));
+const shared = [...afterBySlug.keys()].filter((s) => beforeBySlug.has(s));
+
+const changedByField = (field) =>
+  shared.filter((s) => afterBySlug.get(s)[field] !== beforeBySlug.get(s)[field]);
+
+const renamed = changedByField('name').map((s) => afterBySlug.get(s).name);
+const repriced = changedByField('price_cents');
+const reworded = changedByField('description');
 
 heading('What changed');
 console.log(`    products ${beforeJson.products.length} -> ${afterJson.products.length}`);
 for (const s of added) console.log(`      + ${s}`);
 for (const s of removed) console.log(`      - ${s}`);
-for (const p of renamed) console.log(`      ~ ${p.name}`);
-if (!added.length && !removed.length && !renamed.length) {
-  console.log('      (same products — a vector or price changed)');
+for (const n of renamed) console.log(`      ~ ${n}`);
+for (const s of repriced) console.log(`      $ ${s} (price)`);
+for (const s of reworded) console.log(`      ~ ${s} (text changed, so its vector changed)`);
+if (!added.length && !removed.length && !renamed.length &&
+    !repriced.length && !reworded.length) {
+  console.log('      (same products — a vector changed)');
 }
-
 // A removed product is worth a second look, because the app ships no product
 // list of its own and a link to one would fall back to the site.
 if (removed.length > 0) {
