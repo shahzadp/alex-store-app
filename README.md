@@ -44,7 +44,11 @@ lib/
       launcher.dart             external URL opening
       deep_link_service.dart    storefront links -> the matching product
     screens/                    home, shop, product, search
-    widgets/                    product card/grid, product image
+    widgets/
+      product_card.dart        the card, with the grid that sizes it
+      product_image.dart       image + the placeholder every product uses
+      skeleton.dart            loading placeholders shaped like the content
+      states.dart              empty, error and "nothing matched" states
     theme.dart                  the site's palette, type scale, card metrics
 
 rust/

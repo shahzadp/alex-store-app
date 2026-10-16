@@ -53,25 +53,31 @@ class ProductScreen extends StatelessWidget {
         }
 
         return Scaffold(
-          appBar: AppBar(title: Text(product.name, maxLines: 1, overflow: TextOverflow.ellipsis)),
+          appBar: AppBar(
+            title: Text(product.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+          ),
           body: ListView(
-            padding: const EdgeInsets.fromLTRB(20, 4, 20, 120),
+            padding: EdgeInsets.fromLTRB(
+                StoreTheme.screenEdge, 4, StoreTheme.screenEdge,
+                120 + StoreTheme.bottomSafeInset(context)),
             children: [
               ProductImage(
                 imageUrl: product.imageUrl,
                 tint: product.tint,
                 label: product.name,
                 aspectRatio: 1.25,
+                heroTag: 'product-image-${product.slug}',
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: StoreTheme.spaceLg),
               Text(product.name, style: Theme.of(context).textTheme.headlineMedium),
-              const SizedBox(height: 6),
+              const SizedBox(height: StoreTheme.spaceSm),
               _Category(category: product.category),
-              const SizedBox(height: 14),
+              const SizedBox(height: StoreTheme.spaceMd),
               _PriceBlock(product: product),
-              const SizedBox(height: 14),
-              Text(product.description, style: Theme.of(context).textTheme.bodyLarge),
-              const SizedBox(height: 26),
+              const SizedBox(height: StoreTheme.spaceLg),
+              Text(product.description,
+                  style: Theme.of(context).textTheme.bodyLarge),
+              const SizedBox(height: StoreTheme.spaceXxl),
 
               if (product.specs.isNotEmpty) ...[
                 _Section(
@@ -112,14 +118,20 @@ class _Category extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Row(
       children: [
-        Text('CATEGORY', style: Theme.of(context).textTheme.labelSmall),
-        const SizedBox(width: 8),
+        Text('CATEGORY', style: theme.textTheme.labelSmall),
+        const SizedBox(width: StoreTheme.spaceMd),
+        Container(width: 1, height: 11, color: StoreTheme.line),
+        const SizedBox(width: StoreTheme.spaceMd),
         Flexible(
           child: Text(
             category,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(letterSpacing: 0),
+            style: theme.textTheme.bodySmall?.copyWith(
+              letterSpacing: 0,
+              color: StoreTheme.ink,
+            ),
           ),
         ),
       ],
@@ -137,13 +149,30 @@ class _PriceBlock extends StatelessWidget {
     final theme = Theme.of(context);
 
     if (!product.inStock) {
-      return Text(
-        'Sold out',
-        style: theme.textTheme.headlineSmall?.copyWith(color: StoreTheme.soldOut),
+      return Row(
+        children: [
+          Text(
+            'Sold out',
+            style: theme.textTheme.headlineSmall?.copyWith(color: StoreTheme.soldOut),
+          ),
+          const SizedBox(width: StoreTheme.spaceMd),
+          Text(
+            'This product cannot be ordered right now.',
+            style: theme.textTheme.bodySmall,
+          ),
+        ],
       );
     }
 
-    return Text(product.price.formatted, style: theme.textTheme.headlineSmall);
+    // The price is the loudest thing under the name, which is where a shopper
+    // looks for it and where every shop they have used puts it.
+    return Text(
+      product.price.formatted,
+      style: theme.textTheme.headlineMedium?.copyWith(
+        color: StoreTheme.ink,
+        letterSpacing: -0.4,
+      ),
+    );
   }
 }
 
@@ -159,14 +188,18 @@ class _Section extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(title.toUpperCase(), style: Theme.of(context).textTheme.labelSmall),
-        const SizedBox(height: 8),
+        const SizedBox(height: StoreTheme.spaceMd),
         Container(
           width: double.infinity,
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.all(StoreTheme.spaceLg),
           decoration: BoxDecoration(
             color: StoreTheme.surface,
             border: Border.all(color: StoreTheme.line),
-            borderRadius: BorderRadius.circular(3),
+            // A card, not a box: the shadow lifts it off the page background
+            // which is the same colour as the section, so a flat border alone
+            // left it looking pasted on.
+            borderRadius: StoreTheme.rMd,
+            boxShadow: StoreTheme.shadowSm,
           ),
           child: child,
         ),
@@ -188,7 +221,10 @@ class _SpecsTable extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         for (var i = 0; i < entries.length; i++) ...[
-          if (i > 0) const SizedBox(height: 9),
+          // A hairline between rows rather than a gap, so the table reads as
+          // one object with rows rather than as a list of loose pairs.
+          if (i > 0)
+            const Divider(height: StoreTheme.spaceLg + 1, thickness: 1),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -199,12 +235,21 @@ class _SpecsTable extends StatelessWidget {
                 width: 112,
                 child: Text(
                   entries[i].key,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(color: StoreTheme.inkMuted),
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodySmall
+                      ?.copyWith(color: StoreTheme.inkMuted),
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: StoreTheme.spaceMd),
               Expanded(
-                child: Text(entries[i].value, style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: StoreTheme.ink)),
+                child: Text(
+                  entries[i].value,
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodyMedium
+                      ?.copyWith(color: StoreTheme.ink),
+                ),
               ),
             ],
           ),

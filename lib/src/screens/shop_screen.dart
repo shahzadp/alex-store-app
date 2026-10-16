@@ -1,10 +1,13 @@
 ﻿import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../catalog_scope.dart';
 import '../services/catalog_service.dart';
 import '../models/catalog.dart';
 import '../theme.dart';
 import '../widgets/product_card.dart';
+import '../widgets/skeleton.dart';
+import '../widgets/states.dart';
 import 'product_screen.dart';
 import 'search_screen.dart';
 
@@ -36,7 +39,24 @@ class _ShopScreenState extends State<ShopScreen> {
         final catalog = state.catalog;
 
         if (catalog == null) {
-          return const Scaffold(body: Center(child: CircularProgressIndicator(strokeWidth: 2)));
+          // The grid of skeletons is the same width as the real grid, so nothing
+          // shifts when the catalog lands.
+          return Scaffold(
+            appBar: AppBar(
+              title: const Text('Shop'),
+              actions: [
+                IconButton(
+                  tooltip: 'Search',
+                  icon: const Icon(Icons.search),
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const SearchScreen()),
+                  ),
+                ),
+                const SizedBox(width: StoreTheme.spaceSm),
+              ],
+            ),
+            body: const SkeletonProductGrid(count: 4),
+          );
         }
 
         final products = _filter(catalog);
@@ -52,7 +72,7 @@ class _ShopScreenState extends State<ShopScreen> {
                   MaterialPageRoute(builder: (_) => const SearchScreen()),
                 ),
               ),
-              const SizedBox(width: 6),
+              const SizedBox(width: StoreTheme.spaceSm),
             ],
           ),
           body: Column(
@@ -64,15 +84,44 @@ class _ShopScreenState extends State<ShopScreen> {
                 onCategory: (c) => setState(() => _category = c),
                 onInStockOnly: (v) => setState(() => _inStockOnly = v),
               ),
+              // How many there are, and how many are shown. A filtered grid
+              // with no count reads as a broken grid, not a filtered one.
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                    StoreTheme.screenEdge, StoreTheme.spaceMd, StoreTheme.screenEdge, 0),
+                child: Row(
+                  children: [
+                    Text(
+                      '${products.length} '
+                      '${products.length == 1 ? 'product' : 'products'}',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    if (_category != null || _inStockOnly) ...[
+                      const Spacer(),
+                      TextButton(
+                        onPressed: () => setState(() {
+                          _category = null;
+                          _inStockOnly = false;
+                        }),
+                        child: const Text('Clear filters'),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
               const Divider(height: 1),
               Expanded(
                 child: products.isEmpty
-                    ? const _Empty()
+                    ? _Empty(onReset: () => setState(() {
+                          _category = null;
+                          _inStockOnly = false;
+                        }))
                     : SingleChildScrollView(
                         child: ProductGrid(
                           products: products,
                           onTap: (p) => Navigator.of(context).push(
-                            MaterialPageRoute(builder: (_) => ProductScreen(slug: p.slug)),
+                            MaterialPageRoute(
+                                builder: (_) => ProductScreen(slug: p.slug)),
                           ),
                         ),
                       ),
@@ -96,6 +145,9 @@ class _ShopScreenState extends State<ShopScreen> {
   }
 }
 
+/// The filters are a plain subset of the fetched catalog — no request, no query.
+/// With a handful of products there is nothing a server could do better, and a
+/// filter that can fail is a filter that eventually will.
 class _Filters extends StatelessWidget {
   const _Filters({
     required this.categories,
@@ -113,29 +165,44 @@ class _Filters extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final all = [null, ...categories];
     return SizedBox(
-      height: 48,
-      child: ListView(
+      height: 52,
+      child: ListView.builder(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 9),
-        children: [
-          _Chip(
-            label: 'All',
-            selected: selected == null,
-            onTap: () => onCategory(null),
-          ),
-          for (final c in categories) ...[
-            const SizedBox(width: 7),
-            _Chip(label: c, selected: selected == c, onTap: () => onCategory(c)),
-          ],
-          const SizedBox(width: 7),
-          _Chip(label: 'In stock', selected: inStockOnly, onTap: () => onInStockOnly(!inStockOnly)),
-        ],
+        padding: const EdgeInsets.symmetric(
+          horizontal: StoreTheme.screenEdge,
+          vertical: StoreTheme.spaceSm,
+        ),
+        itemCount: all.length + 1,
+        itemBuilder: (context, i) {
+          if (i == all.length) {
+            final last = i == 0;
+            return Padding(
+              padding: EdgeInsets.only(left: last ? 0 : StoreTheme.spaceSm),
+              child: _Chip(
+                label: 'In stock',
+                selected: inStockOnly,
+                onTap: () => onInStockOnly(!inStockOnly),
+              ),
+            );
+          }
+          final c = all[i];
+          return Padding(
+            padding: EdgeInsets.only(left: i == 0 ? 0 : StoreTheme.spaceSm),
+            child: _Chip(
+              label: c ?? 'All',
+              selected: selected == c,
+              onTap: () => onCategory(c),
+            ),
+          );
+        },
       ),
     );
   }
 }
 
+/// A filter chip with a visible selected state and a real check affordance.
 class _Chip extends StatelessWidget {
   const _Chip({required this.label, required this.selected, required this.onTap});
 
@@ -147,23 +214,45 @@ class _Chip extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: selected ? StoreTheme.ink : StoreTheme.surface,
-      borderRadius: BorderRadius.circular(3),
+      borderRadius: StoreTheme.rSm,
       child: InkWell(
-        borderRadius: BorderRadius.circular(3),
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 7),
-          decoration: BoxDecoration(
-            border: Border.all(color: selected ? StoreTheme.ink : StoreTheme.line),
-            borderRadius: BorderRadius.circular(3),
+        borderRadius: StoreTheme.rSm,
+        onTap: () {
+          HapticFeedback.selectionClick();
+          onTap();
+        },
+        child: AnimatedContainer(
+          duration: StoreTheme.durationFast,
+          curve: StoreTheme.curveStandard,
+          padding: const EdgeInsets.symmetric(
+            horizontal: StoreTheme.spaceLg,
+            vertical: StoreTheme.spaceSm,
           ),
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: 12.5,
-              fontWeight: FontWeight.w500,
-              color: selected ? Colors.white : StoreTheme.ink,
+          decoration: BoxDecoration(
+            border: Border.all(
+              color: selected ? StoreTheme.ink : StoreTheme.line,
             ),
+            borderRadius: StoreTheme.rSm,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // A tick, so the selected state survives being seen out of the
+              // corner of the eye and is not carried by colour alone.
+              if (selected) ...[
+                const Icon(Icons.check, size: 14, color: StoreTheme.inkOnDark),
+                const SizedBox(width: StoreTheme.spaceXs + 2),
+              ],
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w500,
+                  letterSpacing: 0.1,
+                  color: selected ? StoreTheme.inkOnDark : StoreTheme.ink,
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -172,18 +261,18 @@ class _Chip extends StatelessWidget {
 }
 
 class _Empty extends StatelessWidget {
-  const _Empty();
+  const _Empty({required this.onReset});
+
+  final VoidCallback onReset;
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Text(
-          'Nothing matches those filters.',
-          style: Theme.of(context).textTheme.bodyMedium,
-        ),
-      ),
+    return StoreEmptyState(
+      icon: Icons.filter_alt_off_outlined,
+      title: 'Nothing matches those filters',
+      message: 'Try a different category, or show everything the shop carries.',
+      actionLabel: 'Show everything',
+      onAction: onReset,
     );
   }
 }

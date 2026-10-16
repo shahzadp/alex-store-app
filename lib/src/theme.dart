@@ -97,10 +97,15 @@ class StoreTheme {
         backgroundColor: bg,
         surfaceTintColor: Colors.transparent,
         foregroundColor: ink,
+        // Depth appears only once the page is scrollable underneath, which is
+        // what tells the shopper that the title is pinned and the content is
+        // moving. `scrolledUnderElevation: 0` left the app bar permanently
+        // flush, which reads as a static header rather than a sticky one.
         elevation: 0,
-        scrolledUnderElevation: 0,
+        scrolledUnderElevation: 2,
+        shadowColor: Color(0x1A2E2638),
         centerTitle: false,
-        titleTextStyle: TextStyle(fontSize: 18, fontWeight: FontWeight.w500, color: ink, letterSpacing: -0.2),
+        titleTextStyle: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: ink, letterSpacing: -0.2),
       ),
       dividerTheme: const DividerThemeData(color: line, thickness: 1, space: 1),
       filledButtonTheme: FilledButtonThemeData(
@@ -187,8 +192,67 @@ class StoreTheme {
   static const nameHeight = nameLines * nameLineHeight;
   static const descriptionHeight = descriptionLines * descriptionLineHeight;
 
-  /// Padding needed at the bottom of a scrolling view so its last row can be
-  /// scrolled clear of the system navigation bar.
+  // ── Shape ───────────────────────────────────────────────────────────────────
+  //
+  // One radius scale, used everywhere. An app reads as considered when every
+  // corner is a deliberate number from the same set; it reads as improvised when
+  // each widget invents its own (this file previously had `3` on the filter
+  // chips, `4` on buttons, `2` on inputs and nothing on the image tiles — four
+  // different radii for the same page).
+
+  /// Small controls: chips, icon buttons, inputs.
+  static const radiusSm = 6.0;
+
+  /// Buttons and cards.
+  static const radiusMd = 10.0;
+
+  /// Image tiles and sheets.
+  static const radiusLg = 14.0;
+
+  static const rSm = BorderRadius.all(Radius.circular(radiusSm));
+  static const rMd = BorderRadius.all(Radius.circular(radiusMd));
+  static const rLg = BorderRadius.all(Radius.circular(radiusLg));
+
+  // ── Spacing ─────────────────────────────────────────────────────────────────
+  //
+  // A 4pt grid. Screen margins and the gaps between sections come from here so
+  // the vertical rhythm is the same on every screen.
+
+  static const spaceXs = 4.0;
+  static const spaceSm = 8.0;
+  static const spaceMd = 12.0;
+  static const spaceLg = 16.0;
+  static const spaceXl = 24.0;
+  static const spaceXxl = 32.0;
+
+  /// Screen edge. 20 rather than the Material default 16: the site's own
+  /// gutters are 20px and the two should read as the same layout.
+  static const screenEdge = 20.0;
+
+  // ── Elevation ───────────────────────────────────────────────────────────────
+  //
+  // Two levels, and no more. A shop that only ever shows a hard edge looks
+  // flat in the literal sense; one that puts a shadow on every surface looks
+  // noisy. Depth is reserved for things that genuinely float.
+
+  static const shadowSm = <BoxShadow>[
+    BoxShadow(color: Color(0x0F2E2638), blurRadius: 8, offset: Offset(0, 2)),
+  ];
+  static const shadowMd = <BoxShadow>[
+    BoxShadow(color: Color(0x142E2638), blurRadius: 20, offset: Offset(0, 6)),
+  ];
+
+  // ── Motion ──────────────────────────────────────────────────────────────────
+  //
+  // Durations for the two transitions that appear throughout. Slow enough to
+  // see, fast enough not to wait.
+
+  static const durationFast = Duration(milliseconds: 140);
+  static const durationMed = Duration(milliseconds: 240);
+
+  static const curveStandard = Curves.easeOutCubic;
+
+  /// Bottom inset that clears the system navigation bar.
   ///
   /// This is the "three-button navigation area" problem: on gesture-nav
   /// devices the inset is a few dp and nothing looks wrong, but with the

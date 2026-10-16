@@ -487,6 +487,62 @@ pull-to-refresh. No app release — because the split is:
 **Changing the model is the one exception**, and the only case that needs a new
 APK. The app refuses to search on a model mismatch rather than ranking wrongly.
 
+### A UI pass that looks done, and the three places it had to change
+
+The app looked built rather than made. Four things carried most of it, and none
+of them were new features.
+
+**Skeletons instead of a spinner.** Home, shop and search each showed a lone
+`CircularProgressIndicator` on an otherwise blank page. A spinner says "loading";
+a skeleton in the shape of what is coming says "about to be a shop", which is the
+difference between an app that works and one that feels considered. `widgets/
+skeleton.dart` sweeps a highlight rather than pulsing an opacity — a sweep reads
+as progress, a pulse reads as indecision.
+
+**One radius scale.** There were four different corner radii on one page: `3` on
+the filter chips, `4` on buttons, `2` on inputs, none on the image tiles. Now
+`StoreTheme.rSm/rMd/rLg` and nothing else. An app reads as deliberate when every
+corner is a number from the same set.
+
+**Sold-out is a state, not a styling.** It was grey text next to a normal price,
+which is indistinguishable at a glance from a product that merely costs the same
+as its neighbour. It is now a veil over the tile plus a badge, legible across a
+room, because the expensive failure is a shopper tapping, reading, and finding out
+too late that they cannot order.
+
+**Depth and feedback.** `scrolledUnderElevation` was `0`, so the app bar never
+gained depth and read as a static header rather than a pinned one. Cards now
+confirm taps with `HapticFeedback.selectionClick`, and the product image runs a
+`Hero` from card to product page — the cheapest "this was built properly" signal
+there is, since the tile flies into place instead of cutting.
+
+**`products.dart` placeholder is the product image.** Every `image_url` is null,
+so the tile is what every shopper sees for every product. The old version dumped
+the product name in 12px over a flat field, which reads as "image missing" —
+accurate, but a shop where every product looks broken is a shop that looks
+untrustworthy. It is now a two-stop gradient of the product's own tint with the
+name set deliberately, and no invented photography, because MEMORY.md §4 allows
+only what is verifiable.
+
+### The card's height is derived, and a nested Padding broke it
+
+Wrapping the card in `Material` for the ripple meant there were suddenly **two**
+`Padding(vertical: cardVerticalPadding)` — the outer one from the card and one
+inherited with the new wrapper. Every card grew by 36dp and overflowed its grid
+cell, which is the exact overlap bug the derived-aspect-ratio fix had already
+solved. `flutter analyze` said nothing.
+
+`test/card_geometry_test.dart` now measures the real `ProductCard` at the cell
+width the grid would hand it and asserts it fits, at four screen widths. Verified
+by injecting 33px of unaccounted height and watching it fail with
+`372.0 vs 339.0 reserved` — exactly the injected amount. A test that cannot fail
+is not a guard.
+
+The same golden pass also caught that `matchesGoldenFile` renders text as grey
+boxes (no font assets in the test env). Useful for checking layout, useless for
+type, and brittle as a regression test — so the harness and its goldens were
+deleted rather than committed.
+
 ---
 
 ## 4. Ordering rules inherited from the store

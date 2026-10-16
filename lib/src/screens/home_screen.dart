@@ -9,6 +9,8 @@ import '../services/whatsapp.dart';
 import '../theme.dart';
 import '../widgets/product_card.dart';
 import '../widgets/product_image.dart';
+import '../widgets/skeleton.dart';
+import '../widgets/states.dart';
 import 'product_screen.dart';
 import 'search_screen.dart';
 import 'shop_screen.dart';
@@ -60,14 +62,10 @@ class _Body extends StatelessWidget {
 
     if (catalog == null) {
       if (state.isLoading) {
-        return const Center(
-          child: SizedBox(
-            width: 22,
-            height: 22,
-            child: CircularProgressIndicator(
-                strokeWidth: 2, color: StoreTheme.inkMuted),
-          ),
-        );
+        // Same shape as the shop, in the same place: a shopper who has seen this
+        // once can predict what is coming, which is the whole point. A lone
+        // spinner said "loading" but not "about to be a shop".
+        return const SkeletonProductGrid(count: 4);
       }
       return _LoadError(message: state.error);
     }
@@ -348,25 +346,9 @@ class _LoadError extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              message ?? 'The store could not be loaded.',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-            const SizedBox(height: 18),
-            OutlinedButton(
-              onPressed: () => CatalogScope.of(context).load(),
-              child: const Text('Try again'),
-            ),
-          ],
-        ),
-      ),
+    return StoreErrorState(
+      message: message,
+      onRetry: () => CatalogScope.of(context).load(),
     );
   }
 }

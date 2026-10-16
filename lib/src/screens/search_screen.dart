@@ -6,6 +6,8 @@ import '../catalog_scope.dart';
 import '../models/catalog.dart';
 import '../services/search_engine.dart';
 import '../theme.dart';
+import '../widgets/skeleton.dart';
+import '../widgets/states.dart';
 import 'product_screen.dart';
 
 /// Semantic search, backed by the native ternlight engine.
@@ -155,9 +157,9 @@ class _SearchScreenState extends State<SearchScreen> {
     if (!_touched) return _Suggestions(catalog: catalog);
 
     if (_busy && _results.isEmpty) {
-      return const Center(
-        child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: StoreTheme.inkMuted)),
-      );
+      // Skeletons in the shape of the results, so the list does not collapse
+      // into a spinner and then snap open.
+      return _SearchSkeletons(query: _controller.text.trim());
     }
 
     if (_problem != null) {
@@ -168,15 +170,11 @@ class _SearchScreenState extends State<SearchScreen> {
     }
 
     if (_results.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Text(
-            'Nothing matched "${_controller.text.trim()}".',
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
-        ),
+      return StoreEmptyState(
+        icon: Icons.search_off_rounded,
+        title: 'Nothing matched',
+        message: 'No product answers to "${_controller.text.trim()}". Try what '
+            'you would call it out loud, rather than what it is labelled.',
       );
     }
 
@@ -219,6 +217,42 @@ class _SearchScreenState extends State<SearchScreen> {
 /// Phrased as phrasings a shopper would use, not product names — the point of
 /// a semantic index is that you do not have to know what things are called.
 /// CATALOG-GUIDE.md §9 asks for exactly this when verifying a reindex.
+/// Result-shaped placeholders while the engine works.
+class _SearchSkeletons extends StatelessWidget {
+  const _SearchSkeletons({required this.query});
+
+  final String query;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView.separated(
+      padding: EdgeInsets.fromLTRB(StoreTheme.screenEdge, 4,
+          StoreTheme.screenEdge, 28 + StoreTheme.bottomSafeInset(context)),
+      itemCount: 4,
+      separatorBuilder: (_, __) => const SizedBox(height: StoreTheme.spaceLg),
+      itemBuilder: (context, i) => Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Skeleton(width: 56, height: 56, radius: StoreTheme.radiusMd),
+          const SizedBox(width: StoreTheme.spaceMd),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Skeleton(width: 140 + (i * 22) % 60, height: 14),
+                const SizedBox(height: StoreTheme.spaceSm),
+                const Skeleton(width: double.infinity, height: 11),
+                const SizedBox(height: StoreTheme.spaceXs),
+                const Skeleton(width: 180, height: 11),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _Suggestions extends StatelessWidget {
   const _Suggestions({required this.catalog});
 

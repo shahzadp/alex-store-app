@@ -18,6 +18,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../models/catalog.dart';
 import '../theme.dart';
@@ -39,57 +40,115 @@ class ProductCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      // Ink on the card rather than a border: the site uses a hairline grid
-      // with no card chrome, and a ripple needs *something* to sit on.
-      splashColor: const Color(0x14000000),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: StoreTheme.cardVerticalPadding),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ProductImage(
-              imageUrl: product.imageUrl,
-              tint: product.tint,
-              label: product.name,
-              seed: seed,
-              aspectRatio: StoreTheme.cardImageAspect,
-            ),
-            const SizedBox(height: StoreTheme.cardGapImage),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: StoreTheme.cardVerticalPadding),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: StoreTheme.rMd,
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: () {
+            // A tactile confirmation at the moment of intent, which is what
+            // makes a tap feel like it landed. Silent taps read as ignored.
+            HapticFeedback.selectionClick();
+            onTap();
+          },
+          splashColor: StoreTheme.accent.withValues(alpha: 0.06),
+          highlightColor: StoreTheme.accent.withValues(alpha: 0.03),
+          // No padding here: the outer Padding already supplies the card's
+          // vertical inset. It was here once and doubled the card's height,
+          // which overflowed the grid by exactly that much.
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+                Stack(
+                  children: [
+                    ProductImage(
+                      imageUrl: product.imageUrl,
+                      tint: product.tint,
+                      label: product.name,
+                      seed: seed,
+                      aspectRatio: StoreTheme.cardImageAspect,
+                      heroTag: 'product-image-${product.slug}',
+                    ),
+                    // Sold-out is a state, not a styling of the price. A card
+                    // that merely greys its text gives no reason why, and one
+                    // that looks identical to an in-stock card is the thing
+                    // that costs a sale: a shopper taps it, reads the product,
+                    // and only then finds they cannot order.
+                    if (!product.inStock) const _SoldOutVeil(),
+                  ],
+                ),
+                const SizedBox(height: StoreTheme.cardGapImage),
 
-            // Reserved, never grown.
-            SizedBox(
-              height: StoreTheme.nameHeight,
-              child: Text(
-                product.name,
-                maxLines: StoreTheme.nameLines,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.titleSmall,
+                // Reserved, never grown.
+                SizedBox(
+                  height: StoreTheme.nameHeight,
+                  child: Text(
+                    product.name,
+                    maxLines: StoreTheme.nameLines,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                ),
+                const SizedBox(height: StoreTheme.cardGapName),
+
+                SizedBox(
+                  height: StoreTheme.descriptionHeight,
+                  child: Text(
+                    product.description,
+                    maxLines: StoreTheme.descriptionLines,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ),
+                const SizedBox(height: StoreTheme.cardGapDescription),
+                SizedBox(
+                  height: StoreTheme.priceRowHeight,
+                  child: _PriceRow(product: product),
+                ),
+              ],
+            ),
+          ),
+        ),
+    );
+  }
+}
+
+/// Washes the tile and labels it, so an unsaleable card is legible at a glance
+/// from two metres away rather than only when it is tapped.
+class _SoldOutVeil extends StatelessWidget {
+  const _SoldOutVeil();
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned.fill(
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: StoreTheme.bg.withValues(alpha: 0.55),
+          borderRadius: StoreTheme.rMd,
+        ),
+        child: Center(
+          child: Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: StoreTheme.spaceMd,
+              vertical: StoreTheme.spaceXs + 2,
+            ),
+            decoration: BoxDecoration(
+              color: StoreTheme.surfaceDark.withValues(alpha: 0.92),
+              borderRadius: StoreTheme.rSm,
+            ),
+            child: const Text(
+              'Sold out',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.4,
+                color: StoreTheme.inkOnDark,
               ),
             ),
-            const SizedBox(height: StoreTheme.cardGapName),
-
-            SizedBox(
-              height: StoreTheme.descriptionHeight,
-              child: Text(
-                product.description,
-                maxLines: StoreTheme.descriptionLines,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            ),
-            const SizedBox(height: StoreTheme.cardGapDescription),
-
-            // Fixed height, so every price line in the row sits on the same
-            // baseline regardless of whether it is a price or "Sold out".
-            const SizedBox(height: StoreTheme.cardGapPrice),
-            SizedBox(
-              height: StoreTheme.priceRowHeight,
-              child: _PriceRow(product: product),
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -111,6 +170,8 @@ class _PriceRow extends StatelessWidget {
     final theme = Theme.of(context);
 
     if (!product.inStock) {
+      // Muted but struck-through-free: a strikethrough would imply a discount
+      // that does not exist (MEMORY.md §4, only verifiable claims).
       return Text(
         'Sold out',
         style: theme.textTheme.titleSmall?.copyWith(color: StoreTheme.soldOut),
