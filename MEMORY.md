@@ -543,6 +543,34 @@ boxes (no font assets in the test env). Useful for checking layout, useless for
 type, and brittle as a regression test — so the harness and its goldens were
 deleted rather than committed.
 
+### The release is published, and the button delivers it byte-for-byte
+
+`v1.0` is live at
+`https://github.com/shahzadp/alex-store-app/releases/tag/v1.0` with `alex-store.apk`
+attached, and the site's download button points at it.
+
+The URL uses the **`latest`** form, not the tag:
+
+    https://github.com/shahzadp/alex-store-app/releases/latest/download/alex-store.apk
+
+so the next release needs no change to `Store/build.config.json`. Both that and
+`/download/v1.0/alex-store.apk` return 200; the older note in the config file
+said `/releases/download/latest/apk/...`, which 404s — the asset goes directly
+after `download`, not under a `latest/` path.
+
+Verified end to end rather than by inspection: fetched the **live** site's button
+href, followed it, and compared the SHA-256 of the bytes delivered against the
+APK that was built. Identical (`06BE7a33…`), so what a shopper downloads is the
+binary that was tested, not something that merely has the right name.
+
+`gh` and `api.github.com` both work from this machine now — the earlier note
+that `api.github.com` was blocked no longer applies. `gh release create` needs
+no separate setup; it uses the keyring account.
+
+The `_apkUrlNote` field was deleted from `build.config.json`. It documented the
+inert-control behaviour for a state that no longer applies, and leaving it would
+suggest an empty `apkUrl` is still the expected configuration.
+
 ---
 
 ## 4. Ordering rules inherited from the store
