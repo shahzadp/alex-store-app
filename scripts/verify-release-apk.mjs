@@ -179,6 +179,7 @@ function main() {
     checkModel(work);
     checkSplash(work);
     checkSystemSplash();
+    checkPackageVisibility();
     checkPluginRegistration(work);
   } finally {
     fs.rmSync(work, { recursive: true, force: true });
@@ -602,6 +603,71 @@ function checkSystemSplash() {
     blank
       ? `${path} is a shape over android:color/transparent and nothing else`
       : `${path} is not a blank shape`,
+  );
+}
+
+function checkPackageVisibility() {
+  heading('Package visibility (the WhatsApp button)');
+
+  const aapt2 = buildToolsFile(process.platform === 'win32' ? 'aapt2.exe' : 'aapt2');
+  if (!aapt2) {
+    info('whatsapp / https queries', 'aapt2 unavailable, so this was not checked');
+    return;
+  }
+
+  const tree = run(aapt2, ['dump', 'xmltree', APK_PATH, '--file', 'AndroidManifest.xml']).stdout;
+  if (!tree) {
+    record('the packaged manifest declares <queries>', false, 'aapt2 produced no manifest dump');
+    return;
+  }
+
+  // Slice out the <queries> element. Only its children are indented past it, so
+  // the next element at the same depth (or shallower) is where it ends.
+  const lines = tree.split(/\r?\n/);
+  const start = lines.findIndex((l) => /^\s*E: queries\b/.test(l));
+  if (start < 0) {
+    record(
+      'the packaged manifest declares <queries>',
+      false,
+      'no <queries> element in the merged manifest',
+    );
+    return;
+  }
+  const indent = lines[start].match(/^(\s*)/)[1].length;
+  const block = [];
+  for (let i = start + 1; i < lines.length; i++) {
+    const element = lines[i].match(/^(\s*)E: /);
+    if (element && element[1].length <= indent) break;
+    block.push(lines[i]);
+  }
+
+  // An entry has to be a whole intent — an action AND the scheme. A bare <data>
+  // with no action is not a query Android will match, so looking for the scheme
+  // text anywhere inside <queries> would pass on a manifest that cannot work.
+  const intents = block
+    .join('\n')
+    .split(/\n(?=\s*E: intent\b)/)
+    .filter((chunk) => /^\s*E: intent\b/.test(chunk));
+  const declares = (action, scheme) =>
+    intents.some(
+      (chunk) =>
+        /E: action\b/.test(chunk) &&
+        chunk.includes(`"${action}"`) &&
+        new RegExp(`android:scheme\\([^)]*\\)="${scheme}"`).test(chunk),
+    );
+
+  const view = 'android.intent.action.VIEW';
+  const https = declares(view, 'https');
+  const whatsapp = declares(view, 'whatsapp');
+  record(
+    'https is queryable (the wa.me fallback a browser answers)',
+    https,
+    https ? 'VIEW + scheme https' : 'absent: canLaunchUrl cannot see a browser on Android 11+',
+  );
+  record(
+    'whatsapp is queryable (the installed app)',
+    whatsapp,
+    whatsapp ? 'VIEW + scheme whatsapp' : 'absent: canLaunchUrl cannot see WhatsApp on Android 11+',
   );
 }
 

@@ -64,11 +64,35 @@
          https://developer.android.com/training/package-visibility and
          https://developer.android.com/reference/android/content/Intent#ACTION_PROCESS_TEXT.
 
-         In particular, this is used by the Flutter engine in io.flutter.plugin.text.ProcessTextPlugin. -->
+         In particular, this is used by the Flutter engine in io.flutter.plugin.text.ProcessTextPlugin.
+
+         The two VIEW entries below are for the WhatsApp button, and they are
+         the fix for a bug that was invisible on one handset and broke the
+         button on another: on Android 11+ (API 30), `Intent.resolveActivity`
+         only sees packages this app declares, so `canLaunchUrl` answered FALSE
+         for a plain https:// link and the shopper was told no app could open
+         the link, on a phone with both WhatsApp and a browser installed.
+
+         `lib/src/services/launcher.dart` no longer gates the launch on
+         `canLaunchUrl`, so the button works either way; this declaration is
+         what makes the platform's *answers* about these schemes truthful.
+         A redundant declaration is cheap; a silently wrong answer is not.
+         `scripts/verify-release-apk.mjs` checks both entries survive into the
+         packaged APK. -->
     <queries>
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
+        </intent>
+        <!-- The universal link, opened in a browser when WhatsApp is absent. -->
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="https"/>
+        </intent>
+        <!-- `whatsapp://send`, which opens the app itself. -->
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="whatsapp"/>
         </intent>
     </queries>
 </manifest>

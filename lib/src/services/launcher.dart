@@ -5,6 +5,25 @@
 /// WhatsApp installed the OS offers a web fallback; if even that fails the
 /// shopper sees a message rather than a button that does nothing — which is
 /// worse than a button that clearly cannot work.
+///
+/// # Do NOT gate the launch on `canLaunchUrl`
+///
+/// [launch] used to be `canLaunchUrl(uri) && launchUrl(uri)`. That reads as
+/// defensive and is the opposite: on Android 11+ (API 30) `canLaunchUrl`
+/// answers from `Intent.resolveActivity`, which **package visibility** filters
+/// off the real package list unless the scheme is declared in `<queries>`. So
+/// it returned `false` for a plain `https://` link — and the button announced
+/// *"No app on this device can open the link"* on a phone with both WhatsApp
+/// and a browser installed, while `startActivity` would have opened it,
+/// because *starting* an intent is not filtered the same way as *querying* for
+/// one.
+///
+/// `launchUrl` is already the honest answer: url_launcher's Android plugin
+/// calls `startActivity` and returns false when it catches the
+/// `ActivityNotFoundException`. So the pre-check bought nothing and threw away
+/// the launch it was guarding. `AndroidManifest.xml` declares both schemes
+/// under `<queries>` as well, so the platform also *answers* capability
+/// questions about them correctly — but nothing here depends on that answer.
 library;
 
 import 'package:flutter/material.dart';
@@ -14,15 +33,19 @@ import '../theme.dart';
 import 'whatsapp.dart';
 
 /// Open [url]. Returns false if nothing could handle it.
+///
+/// Attempt-then-report, with no capability check in front of it — see the note
+/// at the top of this file for what that check cost on Android 11+.
 Future<bool> launch(String url) async {
   final uri = Uri.tryParse(url);
   if (uri == null) return false;
   try {
-    if (await canLaunchUrl(uri)) return await launchUrl(uri, mode: LaunchMode.externalApplication);
+    return await launchUrl(uri, mode: LaunchMode.externalApplication);
   } catch (_) {
+    // A URL the platform rejects, or a handler that throws instead of
+    // returning false. Either way it did not open.
     return false;
   }
-  return false;
 }
 
 /// Launch a `wa.me` link, telling the shopper if it could not be opened.

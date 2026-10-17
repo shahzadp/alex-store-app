@@ -32,8 +32,16 @@ self-contained.
   published — the launch video and the corrected system splash — and the site's
   button delivers it. See §3, "The release is published, and the button delivers
   it byte-for-byte".
-- **What is proven and what is not:** analyze clean, 94 Dart tests, 9 Rust parity
-  tests, and 28 checks against the built APK
+- **`v1.1` cannot order on Android 11+.** Its WhatsApp button asks
+  `canLaunchUrl` before launching, and package visibility makes that answer
+  false for every scheme unless the manifest declares them — so on those handsets
+  the button says "No app on this device can open the link" with WhatsApp
+  installed. Fixed in `1.1.1+3` (`pubspec.yaml`), which is what §3's "No app on
+  this device can open the link" describes. **Not published yet**; the
+  versionCode is bumped because an equal one is the same version to the
+  installer.
+- **What is proven and what is not:** analyze clean, 98 Dart tests, 9 Rust parity
+  tests, and 30 checks against the built APK
   (`scripts/verify-release-apk.mjs`). None of that is a phone, though. One handset
   has run the app and confirmed what the artifact checks could not: the launch
   video with its audio, the corrected system splash, and — on the R8-obfuscated
@@ -402,6 +410,73 @@ store name, `*bold*` product name, category and price on one line, the short
 description, and "Is it available?". It used to append the entire long-form
 `details` block, which the site deliberately does not — an order message long
 enough to scroll is one the shopkeeper will not read.
+
+### "No app on this device can open the link" — on a phone with WhatsApp installed
+
+The order button worked on one handset and showed
+
+```
+Could not open WhatsApp
+No app on this device can open the link.
+Message the shop on +923288304524 instead.
+```
+
+on another, from the same APK. The website's button worked on both, because a
+browser resolves the link itself.
+
+The dialog is the last of three attempts (`whatsapp://send`, then `wa.me`, then
+the dialog), so it meant **`canLaunchUrl('https://wa.me/…')` had returned
+false**. That is not an observation about the phone. On Android 11+ (API 30)
+`canLaunchUrl` answers from `Intent.resolveActivity`, and package visibility
+filters that query against the packages the app declares in `<queries>`. The
+manifest declared only `PROCESS_TEXT`, so the answer was false for *every*
+scheme — including plain `https`, on a device with a browser installed.
+url_launcher's README:
+
+> Add any URL schemes passed to `canLaunchUrl` as `<queries>` entries in your
+> `AndroidManifest.xml`, otherwise it will return false in most cases starting
+> on Android 11 (API 30) or higher.
+
+The trap is the shape of it. `canLaunchUrl(uri) && launchUrl(uri)` reads as
+defensive and is the opposite: **querying** for a handler is filtered by
+package visibility, **starting** one is not. `launchUrl` already calls
+`startActivity` and returns false when it catches the `ActivityNotFoundException`,
+so it was the honest answer the whole time, and the pre-check only threw away
+the launch it was guarding.
+
+Android says both halves of that in one note, on the page about which packages
+are visible without declaring anything:
+
+> You can start another app's activity using either an implicit or explicit
+> intent regardless of whether that app is visible to your app. Also, if your
+> app targets Android 10 (API level 29) or lower, **all** apps are visible to
+> your app automatically.
+
+A browser is not on the automatically-visible list, so nothing rescues the
+`canLaunchUrl` answer on a modern handset.
+
+Two changes, in the order they matter:
+
+1. `lib/src/services/launcher.dart` no longer asks; it attempts the launch and
+   reports what happened. **Never put a capability check in front of a launch.**
+   It can be wrong on exactly the devices where the launch itself works.
+2. `AndroidManifest.xml` declares `https` and `whatsapp` VIEW intents under
+   `<queries>`, so the platform also *answers* questions about them truthfully.
+   Nothing depends on that answer any more, which is the point.
+
+**Why one handset passed and the other did not** is why this got as far as a
+shopper, and it is the note above: the filter is applied by the *device's*
+Android version (the app targets 36, so any Android 11+ handset filters; an
+Android 10 or older one filters nothing). Two phones, one APK, one right and one
+wrong, with no error path naming the cause. Neither the app nor `flutter
+analyze` can see it. `test/whatsapp_launch_test.dart` can — it fakes a platform
+whose `canLaunch` is false for everything while `launchUrl` succeeds, which is
+the failing handset exactly, and asserts the button still opens WhatsApp. It
+also pins the fallback order and that the dialog really is the last resort.
+Restoring `canLaunchUrl` in front of the launch makes it fail.
+`scripts/verify-release-apk.mjs` checks the two `<queries>` entries in the
+packaged manifest, and it reproduces the bug in the shipped `v1.1` APK: that
+artifact fails those two checks and nothing else.
 
 ### A GitHub Pages PROJECT repo cannot host the file Android needs for auto-redirect
 
@@ -861,14 +936,14 @@ node scripts/extract-site-vectors.mjs        # refresh the fixture first
 cd .. && node scripts/check-vectors-agree.mjs # catalog.json == catalog.sql
 
 node scripts/build-apk.mjs
-node scripts/verify-release-apk.mjs           # must be 28/28 before publishing
+node scripts/verify-release-apk.mjs           # must be 30/30 before publishing
 ```
 
 `flutter` and `cargo` are not on `PATH` in a bare shell here; both `scripts` call
 them by name, so prepend `C:\dev\flutter\bin` and `%USERPROFILE%\.cargo\bin`.
 
 **`flutter config` points at `D:\android-sdk`, a junction onto the real SDK under
-`D:\GitHub Projects\DoL-by-Alex\devTools\androidsdk`.** Gradle does not use it —
+`D:\GitHub-Projects\DoL-by-Alex\devTools\androidsdk`.** Gradle does not use it —
 it reads `sdk.dir` from `android/local.properties`, so a `gradlew` build succeeds
 even when the junction is missing. `flutter build apk` does, so it fails with
 "No Android SDK found" and the error looks like a Flutter problem rather than a
@@ -876,7 +951,7 @@ missing junction. The junction exists because the real path contains spaces,
 which Flutter refuses. Recreate it with no admin rights needed:
 
 ```
-mklink /J D:\android-sdk "D:\GitHub Projects\DoL-by-Alex\devTools\androidsdk"
+mklink /J D:\android-sdk "D:\GitHub-Projects\DoL-by-Alex\devTools\androidsdk"
 ```
 
 ### Touching the site
