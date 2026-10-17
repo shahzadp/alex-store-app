@@ -1,12 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Modify this file to customize your launch splash screen -->
-<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:drawable="@android:color/white" />
+<!--
+  The window background, shown while the process starts and until Flutter draws
+  its first frame.
 
-    <!-- You can insert your own image assets here -->
-    <!-- <item>
-        <bitmap
-            android:gravity="center"
-            android:src="@mipmap/launch_image" />
-    </item> -->
+  This used to be flat white. A cold start shows this window for a few hundred
+  milliseconds, so a white rectangle preceded the launch video every time. It is
+  now the video's own opening gradient — see values/colors.xml for where those
+  three stops come from and why they are those values.
+
+  `angle="270"` is top to bottom, so startColor is the top of the screen, which
+  is the orientation the composition uses.
+-->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:type="linear"
+                android:angle="270"
+                android:startColor="@color/splash_top"
+                android:centerColor="@color/splash_mid"
+                android:endColor="@color/splash_bottom" />
+        </shape>
+    </item>
 </layer-list>

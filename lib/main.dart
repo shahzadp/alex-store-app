@@ -6,6 +6,7 @@ import 'src/catalog_scope.dart';
 import 'src/models/catalog.dart';
 import 'src/screens/home_screen.dart';
 import 'src/screens/product_screen.dart';
+import 'src/screens/splash_screen.dart';
 import 'src/services/catalog_service.dart';
 import 'src/services/deep_link_service.dart';
 import 'src/theme.dart';
@@ -26,6 +27,9 @@ class _AlexStoreAppState extends State<AlexStoreApp> {
   late final CatalogService _service;
   final _navigatorKey = GlobalKey<NavigatorState>();
   late final DeepLinkService _deepLinks;
+
+  /// Cleared when the launch video has played and faded out.
+  bool _splashDone = false;
 
   @override
   void initState() {
@@ -84,7 +88,31 @@ class _AlexStoreAppState extends State<AlexStoreApp> {
         theme: StoreTheme.light(),
         navigatorKey: _navigatorKey,
         home: const HomeScreen(),
+        // The launch video sits ON TOP of the app, not in place of it.
+        //
+        // `home` above is built on the very first frame, so the catalog fetch
+        // and the whole home layout happen while the video plays. By the time
+        // the video has faded out the shop is already painted underneath and
+        // the reveal is instant. Any deep link that arrived during the splash
+        // is likewise already pushed and waiting.
+        //
+        // Using MaterialApp's `builder` rather than a wrapper around it is what
+        // gives the splash the app's Theme and MediaQuery, so it has the real
+        // screen size and insets to lay the video out against.
+        builder: (context, child) => Stack(
+          fit: StackFit.expand,
+          children: [
+            if (child != null) child,
+            if (!_splashDone) SplashScreen(onFinished: _onSplashFinished),
+          ],
+        ),
       ),
     );
+  }
+
+  /// The video is over. Drop the overlay; the app is already behind it.
+  void _onSplashFinished() {
+    if (!mounted || _splashDone) return;
+    setState(() => _splashDone = true);
   }
 }

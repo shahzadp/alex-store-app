@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The launch backdrop.
+
+  These are the three stops of the gradient the launch video opens on, taken
+  from Remotion/src/compositions/AlexStore/AlexStore.tsx:
+
+      radial-gradient(1200px 1600px at 50% 40%,
+                      #f5f3ff 0%, #fdf2f8 45%, #ecfeff 100%)
+
+  The Android window is shown for the first few hundred milliseconds of a cold
+  start, before Flutter has drawn anything. Matching it to the video's first
+  frame is what makes that window invisible: the shopper sees one continuous
+  surface from the launcher tap to the end of the video, rather than a white
+  flash (or, in dark mode, a black one) followed by the video.
+
+  The Dart side paints the same three stops behind the video texture for the
+  same reason â€” see SplashScreen._backdrop. Changing one means changing both.
+-->
+<resources>
+    <color name="splash_top">#F5F3FF</color>
+    <color name="splash_mid">#FDF2F8</color>
+    <color name="splash_bottom">#ECFEFF</color>
+</resources>

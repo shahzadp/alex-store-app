@@ -43,13 +43,16 @@ lib/
       whatsapp.dart             wa.me links, plus the two-toned button label
       launcher.dart             external URL opening
       deep_link_service.dart    storefront links -> the matching product
-    screens/                    home, shop, product, search
+    screens/                    home, shop, product, search, splash
     widgets/
       product_card.dart        the card, with the grid that sizes it
       product_image.dart       image + the placeholder every product uses
       skeleton.dart            loading placeholders shaped like the content
       states.dart              empty, error and "nothing matched" states
     theme.dart                  the site's palette, type scale, card metrics
+
+assets/
+  splash/alex-store.mp4         the launch video (see "The launch video")
 
 rust/
   Cargo.toml
@@ -200,6 +203,46 @@ Regenerate the fixture after any catalog or model change:
 node scripts/extract-site-vectors.mjs
 ```
 
+## The launch video
+
+The app opens with a video — the same title animation the storefront uses — rather
+than the blank Android window the Flutter template ships. `assets/splash/alex-store.mp4`
+is the published render of `AlexStore.tsx` in the Remotion project
+(`Remotion/src/compositions/AlexStore`), 1080x1920, 30 fps, 150 frames, with its
+audio.
+
+Three things are worth knowing about how it is wired.
+
+**It is an overlay, not a route.** `SplashScreen` is stacked above `MaterialApp`'s
+navigator via `builder:` in `lib/main.dart`, so `home` is built on the very first
+frame underneath it. The catalog fetch and the whole home layout therefore happen
+*while* the video plays, and the reveal is instant. A pushed route would hold the
+fetch back for the length of the clip and then show a loading state — the opposite
+of what a splash is for.
+
+**The fade is the composition's own.** `AlexStore.tsx` fades out over frames
+140→150; `SplashScreen.defaultFadeOut` is that same 333 ms, so the overlay
+dissolves at the speed the video fades and the hand-off is one continuous fade
+rather than a cut. `test/splash_test.dart` fails if the two ever disagree.
+
+**The Android window is the same gradient.** The video's opening frame is a
+`#f5f3ff → #fdf2f8 → #ecfeff` wash. `res/values/colors.xml` holds those three
+stops and `res/drawable/launch_background.xml` paints them, so the few hundred
+milliseconds before Flutter starts are the same surface as the first frame rather
+than a white — or, in dark mode, black — flash. `res/values-v31/` and
+`res/values-night-v31/` do the same for Android 12's system splash, which reads
+`windowSplashScreenBackground` instead of `windowBackground`. `splash_test.dart`
+asserts the XML and the Dart backdrop carry the same three values.
+
+**Nothing here can strand a user.** A video that will not load, a decoder that
+reports an error and a playback that stalls all fall through to the next screen;
+the splash is never why the app did not open. That path is tested directly.
+
+Cost: the clip is 1.1 MB, and `video_player` brings ExoPlayer (media3) in on
+Android. The APK went from 27.5 MB to 29.3 MB, of which 1.1 MB is the video
+itself; R8 shrinks the rest. `scripts/verify-release-apk.mjs` checks the video
+came out the other side byte for byte, because `isShrinkResources = true` is on.
+
 ## The site side
 
 `catalog.json` did not used to carry vectors — they lived only in `catalog.sql`,
@@ -277,6 +320,12 @@ rather than proceeding, and checks `search_model` from the catalog against
   ABIs it cannot run. On an x86_64 emulator the app installs and browses with
   search disabled (`engineUnavailable`); `node scripts/build-apk.mjs --abis
   android-x64` fixes that for local work.
+- **The launch video has not been played on hardware.** What is verified is the
+  artifact: the clip is in the APK byte for byte, the FFI path still survives R8,
+  and the fade matches the composition's frame for frame. Nobody has watched
+  ExoPlayer decode it, heard the audio, or seen Android 12's system splash on a
+  device. The deadline that stops a stalled video stranding the app is tested,
+  but the decode itself is not.
 - **The app has run on one device, and device testing found things unit tests
   did not.** The release build shipped with no `INTERNET` permission (Flutter's
   template puts it only in the debug manifest), and the product grid overlapped
@@ -295,3 +344,7 @@ rather than proceeding, and checks `search_model` from the catalog against
   built with `flutter_rust_bridge` (MIT) first, which was abandoned — see
   MEMORY.md §6 for why.
 - `url_launcher`, `path_provider` — BSD-3.
+- `video_player` (BSD-3) and, through it on Android,
+  [AndroidX Media3](https://github.com/androidx/media) / ExoPlayer
+  (Apache-2.0). Used for the launch video and nothing else; see
+  "The launch video".

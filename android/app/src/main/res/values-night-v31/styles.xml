@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      The dark-mode, API 31+ case, and the reason it is a separate file: night
+      mode outranks platform version when Android picks a resource, so a device
+      in dark mode on Android 12 or later would otherwise take LaunchTheme from
+      values-night/ and lose the system-splash attributes entirely.
+
+      Identical to values-v31/styles.xml, and deliberately so — the launch
+      backdrop is the light gradient of the video in both cases. See that file
+      for what each attribute is for.
+    -->
+    <style name="LaunchTheme" parent="@android:style/Theme.Light.NoTitleBar">
+        <item name="android:windowBackground">@drawable/launch_background</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowSplashScreenBackground">@color/splash_top</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item>
+    </style>
+</resources>

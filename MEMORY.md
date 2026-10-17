@@ -11,8 +11,12 @@ self-contained.
 
 ## 1. Current state
 
-- Flutter app, Android target, four screens: home, shop, product, search. (The
-  About screen was removed; see §3.)
+- Flutter app, Android target, five screens: home, shop, product, search, and the
+  launch video that opens the app. (The About screen was removed; see §3.)
+- **The app opens with a video.** `assets/splash/alex-store.mp4` — the same
+  render of the storefront's title animation — plays over the app with its audio,
+  and the app is already built underneath it, so the reveal is instant. See §3,
+  "The launch video: an overlay, an exact fade, and three places that must agree".
 - Reads the site's `catalog.json` on every launch; caches a copy for offline.
 - Search: ternlight `base@0.1.1`, **compiled to native Rust** and called over
   `dart:ffi`, ranking the site's published vectors. The boundary is
@@ -27,11 +31,11 @@ self-contained.
 - **The release is signed with a real key and obfuscated with R8.** `v1.0` is
   published and the site's button delivers it. See §3, "Signed with a real key,
   and R8 could not have touched the search path".
-- **What is proven and what is not:** analyze clean, 87 Dart tests, 9 Rust parity
-  tests, and 24 checks against the built APK
+- **What is proven and what is not:** analyze clean, 94 Dart tests, 9 Rust parity
+  tests, and 26 checks against the built APK
   (`scripts/verify-release-apk.mjs`). None of that is a phone, though. One
-  handset has ever run this app, and it has not run the R8-obfuscated build at
-  all.
+  handset has ever run this app; it has not run the R8-obfuscated build, and it
+  has never played the launch video.
 
 ---
 
@@ -716,6 +720,79 @@ did not break search on a handset" still needs a handset.
 
 ---
 
+### The launch video: an overlay, an exact fade, and three places that must agree
+
+The app now opens with `assets/splash/alex-store.mp4` — the storefront's own title
+animation, rendered from `AlexStore.tsx` in the Remotion project, 1080x1920, 30
+fps, 150 frames, **with its audio**.
+
+**It is an overlay, not a route, and that is the whole design.** `SplashScreen`
+is stacked *above* `MaterialApp`'s navigator through `builder:`, so `home` builds
+on the first frame underneath it. The catalog fetch and the entire home layout
+therefore happen while the video plays, and the reveal is instant. Pushing it as
+a route would delay the fetch by the length of the clip and then show a loading
+state — the opposite of what a splash is for. This is the same reasoning as §3's
+"the first frame renders immediately"; it is the app's one stated rule about
+first impressions.
+
+**"Fade out matching" means matching the composition, not picking a nice
+duration.** `AlexStore.tsx` ends with `interpolate(frame, [140, 150], [1, 0])`:
+the whole composition fades over its last 10 frames, which at 30 fps is 333 ms,
+ending on near-black. `SplashScreen.defaultFadeOut` is that same 333 ms. A test
+recomputes 10/30s from the frame numbers and fails if the two ever disagree, so
+re-rendering the composition with a longer tail does not silently leave the app
+fading at the old speed.
+
+**The cold start had a white — or black — flash in front of the video, and it
+took three files to remove.** The video's opening frame is a
+`#f5f3ff → #fdf2f8 → #ecfeff` wash. `res/values/colors.xml` holds those stops,
+`res/drawable/launch_background.xml` paints them into the Android window, and
+`SplashScreen._backdrop` paints the same three in Dart to cover the gap between
+Flutter's first frame and the decoder's first frame. Change one and the launch
+gains a visible seam a few hundred milliseconds in — and no single file is wrong
+on its own, which is exactly the kind of drift nothing notices. Two tests close
+it: one asserts the XML and the Dart gradient carry the same three values, and
+the verifier checks the clip is in the APK byte for byte (`isShrinkResources` is
+on).
+
+That work also turned up a Flutter-template trap: `drawable-v21/launch_background.xml`
+**always wins** at minSdk 24, because the version qualifier is satisfied by every
+API level the app supports — so editing `drawable/launch_background.xml` alone
+changes nothing at runtime. The `-v21` file existed only to pick
+`?android:colorBackground` on API 21+, which is moot here, so it was deleted
+rather than kept in step.
+
+**Android 12 needed its own files, and dark mode needed two of them.**
+`windowBackground` is not what API 31+ reads for its system splash; it reads
+`windowSplashScreenBackground`. Worse, **night mode outranks platform version in
+Android's resource selection**, so a device in dark mode on Android 12+ would
+have taken `LaunchTheme` from `values-night/` and lost the v31 attributes
+entirely. Hence `values-v31/` *and* `values-night-v31/`. `aapt2 dump resources`
+on the built APK confirms all four variants landed: `windowBackground` four times,
+`windowSplashScreenBackground` twice.
+
+**A splash is the one screen that can lock a user out of a working app.** Every
+path out of `SplashScreen` ends in `onFinished`: an asset that will not load, a
+decoder that reports an error, and a playback that stalls all fall through a
+deadline sized to `duration + fade + 1s`. `video_player` also brings its own
+lifecycle observer, so the audio pauses if the shopper leaves mid-splash instead
+of continuing to play over the launcher. All three paths are tested, and the
+tests were checked by mutation: making `_finish` hand over immediately fails two
+of them with the intended message.
+
+**Cost, stated plainly.** The clip is 1.1 MB and `video_player` pulls in
+ExoPlayer (AndroidX Media3, plus its hls/dash/rtsp/smoothstreaming modules) on
+Android. The APK went 27.49 MB → 29.32 MB; 1.1 MB of that is the video and the
+rest survived R8. That is a real cost for a five-second title sequence, and it is
+the price of the request rather than an accident.
+
+**What this does not prove.** Nobody has watched this play. The artifact is
+verified and the failure paths are tested, but ExoPlayer decoding the file, the
+audio being audible, and Android 12's system splash were not observed on any
+device — there is still no emulator and no handset here.
+
+---
+
 ## 4. Ordering rules inherited from the store
 
 Not preferences — breaking them breaks the shop. See `README.md` for the
@@ -746,7 +823,22 @@ node scripts/extract-site-vectors.mjs        # refresh the fixture first
 cd .. && node scripts/check-vectors-agree.mjs # catalog.json == catalog.sql
 
 node scripts/build-apk.mjs
-node scripts/verify-release-apk.mjs           # must be 24/24 before publishing
+node scripts/verify-release-apk.mjs           # must be 26/26 before publishing
+```
+
+`flutter` and `cargo` are not on `PATH` in a bare shell here; both `scripts` call
+them by name, so prepend `C:\dev\flutter\bin` and `%USERPROFILE%\.cargo\bin`.
+
+**`flutter config` points at `D:\android-sdk`, a junction onto the real SDK under
+`D:\GitHub Projects\DoL-by-Alex\devTools\androidsdk`.** Gradle does not use it —
+it reads `sdk.dir` from `android/local.properties`, so a `gradlew` build succeeds
+even when the junction is missing. `flutter build apk` does, so it fails with
+"No Android SDK found" and the error looks like a Flutter problem rather than a
+missing junction. The junction exists because the real path contains spaces,
+which Flutter refuses. Recreate it with no admin rights needed:
+
+```
+mklink /J D:\android-sdk "D:\GitHub Projects\DoL-by-Alex\devTools\androidsdk"
 ```
 
 ### Touching the site
@@ -770,6 +862,10 @@ anything is pushed.
       verified at the artifact level (§3); nothing has been *executed* on
       hardware. This is the one part of the claim `verify-release-apk.mjs` cannot
       make for you.
+- [ ] **Watch the launch video on a device.** Same gap, specific to the splash:
+      the clip is in the APK byte for byte and the fade matches the composition,
+      but ExoPlayer decoding it, the audio, and Android 12's system splash have
+      not been seen. See §3, "The launch video".
 - [x] ~~Find the forward-pass divergence~~ — solved, see §3.
 
 ### The bridge is hand-written, not generated

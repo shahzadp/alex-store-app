@@ -42,10 +42,25 @@ dependencies:
   path_provider: ^2.1.4
   app_links: ^7.2.2
 
+  # Plays the launch video (assets/splash/alex-store.mp4). The app has exactly
+  # one video and one reason to have it: the splash. It brings ExoPlayer in on
+  # Android, which is the whole cost of this dependency and the reason the APK
+  # grew — see README. There is no second player anywhere in the app, and no
+  # streaming, so none of ExoPlayer's other sources are used.
+  video_player: ^2.11.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
+
+  # Only so splash_test.dart can stand in for the native player. `video_player`
+  # deliberately does not re-export VideoPlayerPlatform, VideoEvent or
+  # VideoCreationOptions, so a fake cannot be written without naming this
+  # package — and importing a transitive package directly is what
+  # depend_on_referenced_packages exists to prevent. Test-only; nothing in lib/
+  # refers to it.
+  video_player_platform_interface: ^6.9.0
 
 # NOTE: there is no codegen step any more.
 #
@@ -57,6 +72,16 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+
+  # The launch video. Committed rather than fetched: a splash that has to
+  # download before it can play is not a splash, and it has to work offline on
+  # first run. 1.1 MB is the price of the shop's own opening title.
+  #
+  # The Remotion source that renders it lives outside this repo
+  # (Remotion/src/compositions/AlexStore) — this is the published artifact of
+  # that composition, and the same file the storefront advertises.
+  assets:
+    - assets/splash/
 
 # Model weights are compiled into the native library by include_bytes!, not
 # shipped as a Flutter asset. They are 4.6 MB of binary in an APK that is
