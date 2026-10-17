@@ -32,14 +32,14 @@ self-contained.
   published — the launch video and the corrected system splash — and the site's
   button delivers it. See §3, "The release is published, and the button delivers
   it byte-for-byte".
-- **`v1.1` cannot order on Android 11+.** Its WhatsApp button asks
+- **`v1.1` could not order on Android 11+.** Its WhatsApp button asked
   `canLaunchUrl` before launching, and package visibility makes that answer
   false for every scheme unless the manifest declares them — so on those handsets
-  the button says "No app on this device can open the link" with WhatsApp
-  installed. Fixed in `1.1.1+3` (`pubspec.yaml`), which is what §3's "No app on
-  this device can open the link" describes. **Not published yet**; the
-  versionCode is bumped because an equal one is the same version to the
-  installer.
+  the button said "No app on this device can open the link" with WhatsApp
+  installed. Fixed in `1.1.1+3` and **published as `v1.1.1`**; see §3, "No app on
+  this device can open the link". The versionCode is bumped because an equal one
+  is the same version to the installer, so the fix would never have been offered
+  as an update.
 - **What is proven and what is not:** analyze clean, 98 Dart tests, 9 Rust parity
   tests, and 30 checks against the built APK
   (`scripts/verify-release-apk.mjs`). None of that is a phone, though. One handset
@@ -662,6 +662,20 @@ Verified end to end rather than by inspection: fetched the **live** site's butto
 href, followed it, and compared the SHA-256 of the bytes delivered against the
 APK that was built. Identical (`06BE7a33…`), so what a shopper downloads is the
 binary that was tested, not something that merely has the right name.
+
+`v1.1.1` — the WhatsApp fix (§3) — was released the same way, and every step is
+now a number rather than a claim:
+
+| step | value |
+| --- | --- |
+| built APK (`node scripts/build-apk.mjs`) | `C864FE33…`, 30,745,378 bytes |
+| `node scripts/verify-release-apk.mjs` | 30/30, release key, v2+v3 |
+| release asset `alex-store.apk` digest | `sha256:c864fe33…` |
+| plain GET of the site's `latest` URL | the same `C864FE33…` bytes |
+
+No site change was needed — `build.config.json`'s `apkUrl` is the `latest` form,
+which is the whole reason it is written that way. This time the Fastly edge cache
+above did not even lag.
 
 `gh` and `api.github.com` both work from this machine now — the earlier note
 that `api.github.com` was blocked no longer applies. `gh release create` needs
