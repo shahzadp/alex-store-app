@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Intentionally blank. This is the Android 12 system splash's icon.
+
+  Left to itself, `android:windowSplashScreenAnimatedIcon` is the app's launcher
+  icon, so the system splash drew the shop's mark centred and motionless for the
+  whole cold start — and then the launch video animated the same mark in. The
+  same drawing, twice, once dead. It read as a stutter rather than as a title.
+
+  There is nothing to put here instead, and that is the point. The video's
+  opening frame has no logo in it at all: the mark springs in at about 1.25 s, on
+  a gradient. So the correct thing for the system splash to show is the backdrop
+  alone, which is exactly the gradient already behind it — and the film then
+  continues from there with nothing appearing in between.
+
+  Referenced from res/values-v31/styles.xml and res/values-night-v31/styles.xml.
+  Both must keep pointing here: this is the file that decides whether the start
+  of the app looks like one thing or like the same thing twice.
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@android:color/transparent" />
+</shape>

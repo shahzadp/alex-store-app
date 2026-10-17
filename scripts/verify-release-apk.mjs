@@ -16,6 +16,7 @@
  *     symbol to the engine and this checks it automatically
  *   * the expected signing certificate comes from docs/assetlinks.json
  *   * the expected model hashes come from rust/src/assets/model-from-wasm.json
+ *   * the launch video's path comes from lib/src/screens/splash_screen.dart
  *
  * Run it after scripts/build-apk.mjs:
  *
@@ -177,6 +178,7 @@ function main() {
     checkDartKeptSymbolStrings(work, symbols);
     checkModel(work);
     checkSplash(work);
+    checkSystemSplash();
     checkPluginRegistration(work);
   } finally {
     fs.rmSync(work, { recursive: true, force: true });
@@ -537,6 +539,69 @@ function checkSplash(work) {
     'the packaged video is the repository\'s video, byte for byte',
     sha256(shipped) === sha256(fs.readFileSync(source)),
     sha256(shipped).slice(0, 32) + '…',
+  );
+}
+
+/**
+ * Android 12's system splash, and the one thing about the launch that cannot be
+ * fixed from Dart.
+ *
+ * `android:windowSplashScreenAnimatedIcon` defaults to the app's own launcher
+ * icon, so the system splash drew the shop's mark centred and motionless for the
+ * whole cold start — and the launch video then animated the same mark in. The
+ * same drawing twice, once dead: it reads as a stutter rather than a title, and
+ * it is only visible on a device, which is exactly why it needs a check.
+ */
+function checkSystemSplash() {
+  heading('Android 12 system splash');
+
+  const aapt2 = buildToolsFile(process.platform === 'win32' ? 'aapt2.exe' : 'aapt2');
+  if (!aapt2) {
+    info('system splash icon', 'aapt2 unavailable, so this was not checked');
+    return;
+  }
+
+  const dump = run(aapt2, ['dump', 'resources', APK_PATH]).stdout;
+  if (!dump) {
+    info('system splash icon', 'aapt2 produced no resource dump');
+    return;
+  }
+
+  // 0x0101062d is android:windowSplashScreenAnimatedIcon. Both API-31 themes
+  // have to agree, so it must appear twice and point at the blank drawable both
+  // times.
+  const iconRefs = [...dump.matchAll(/0x0101062d=(\S+)/g)].map((m) => m[1]);
+  const unique = [...new Set(iconRefs)];
+  record(
+    'the system splash draws no icon, in both API-31 themes',
+    iconRefs.length >= 2 && unique.length === 1 && unique[0] === '@drawable/splash_icon',
+    iconRefs.length === 0
+      ? 'windowSplashScreenAnimatedIcon (0x0101062d) is absent, so Android draws the launcher icon'
+      : `${iconRefs.length} theme variant(s) -> ${unique.join(', ')}`,
+  );
+
+  // And that the drawable really is blank: pointing it at an icon would satisfy
+  // the check above and still put the mark on screen. aapt2 renames resource
+  // files during optimisation, so the path has to come out of the dump rather
+  // than be assumed.
+  const path = dump.match(/drawable\/splash_icon[^\n]*\n\s*\([^)]*\)\s*\(file\)\s*(\S+)/)?.[1];
+  if (!path) {
+    record('that drawable is blank', false, 'drawable/splash_icon not found in the resource table');
+    return;
+  }
+
+  const tree = run(aapt2, ['dump', 'xmltree', APK_PATH, '--file', path]).stdout;
+  // @0x0106000d is android:color/transparent; 0x010101a5 is the <solid> colour.
+  const blank =
+    /E: shape/.test(tree) &&
+    /android:color\(0x010101a5\)=@0x0106000d/.test(tree) &&
+    !/E: (bitmap|vector|path|gradient)\b/.test(tree);
+  record(
+    'that drawable is blank',
+    blank,
+    blank
+      ? `${path} is a shape over android:color/transparent and nothing else`
+      : `${path} is not a blank shape`,
   );
 }
 

@@ -32,7 +32,7 @@ self-contained.
   published and the site's button delivers it. See §3, "Signed with a real key,
   and R8 could not have touched the search path".
 - **What is proven and what is not:** analyze clean, 94 Dart tests, 9 Rust parity
-  tests, and 26 checks against the built APK
+  tests, and 28 checks against the built APK
   (`scripts/verify-release-apk.mjs`). None of that is a phone, though. One
   handset has ever run this app; it has not run the R8-obfuscated build, and it
   has never played the launch video.
@@ -679,7 +679,7 @@ A claim about obfuscation ages badly, so it is checked against the artifact
 instead. The script reads its expectations out of the repository — symbol names
 from `native_engine.dart`, the certificate from `docs/assetlinks.json`, model
 hashes from `model-from-wasm.json` — so adding a symbol to the engine adds a
-check automatically, and the expectations cannot drift from the code. 24 checks:
+check automatically, and the expectations cannot drift from the code. 28 checks:
 
 - the signing certificate matches `assetlinks.json` and is not the debug key; v2
   and v3 present; v1 absent is *correct* at minSdk 24, and that is asserted in
@@ -692,6 +692,13 @@ check automatically, and the expectations cannot drift from the code. 24 checks:
 - every packaged ABI has both `libflutter.so` and `libapp.so`.
 - `GeneratedPluginRegistrant`, `registerWith` and `MainActivity` all still exist
   in the DEX by name.
+- the launch video is in the bundle and byte-identical to the repository's copy —
+  which matters because `isShrinkResources` is on and a splash whose video got
+  dropped is a black screen on launch.
+- Android 12's system splash draws no icon: `windowSplashScreenAnimatedIcon`
+  resolves to a blank drawable in both API-31 themes, *and* that drawable is a
+  shape over `android:color/transparent` and nothing else. Pointing it at an icon
+  would satisfy the first half alone, which is why both halves are checked.
 
 The ABI check earned its place by finding something real. `jni_flutter` ships
 `libdartjni.so` for arm64, armv7 and x86_64, so the APK contained `armeabi-v7a/`
@@ -771,6 +778,22 @@ entirely. Hence `values-v31/` *and* `values-night-v31/`. `aapt2 dump resources`
 on the built APK confirms all four variants landed: `windowBackground` four times,
 `windowSplashScreenBackground` twice.
 
+**The system splash was drawing the shop's mark twice, and that had to go.**
+Android 12 draws `windowSplashScreenAnimatedIcon` in the centre of the screen and
+defaults it to the app's own launcher icon — so a cold start showed the mark
+motionless for as long as the engine took to boot, and then the launch video
+animated the *same* mark in. Reported from a device as "it makes the thing look
+repetitive", which is exactly what it is: the same drawing twice, once dead. The
+first draft had set that attribute to `@mipmap/ic_launcher` on purpose, reasoning
+that a blank splash would look broken; that reasoning was backwards here, and
+only a device could have shown it. The video's opening frame contains no logo at
+all — the mark springs in at about 1.25 s, on a gradient — so the backdrop alone
+is the frame that genuinely continues into the film. It now points at
+`res/drawable/splash_icon.xml`, a shape over `android:color/transparent`, in both
+API-31 themes. The verifier checks the attribute resolves to that drawable *and*
+that the drawable is blank, because a reference to a real icon would satisfy the
+first half on its own.
+
 **A splash is the one screen that can lock a user out of a working app.** Every
 path out of `SplashScreen` ends in `onFinished`: an asset that will not load, a
 decoder that reports an error, and a playback that stalls all fall through a
@@ -823,7 +846,7 @@ node scripts/extract-site-vectors.mjs        # refresh the fixture first
 cd .. && node scripts/check-vectors-agree.mjs # catalog.json == catalog.sql
 
 node scripts/build-apk.mjs
-node scripts/verify-release-apk.mjs           # must be 26/26 before publishing
+node scripts/verify-release-apk.mjs           # must be 28/28 before publishing
 ```
 
 `flutter` and `cargo` are not on `PATH` in a bare shell here; both `scripts` call

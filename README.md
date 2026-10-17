@@ -231,8 +231,13 @@ stops and `res/drawable/launch_background.xml` paints them, so the few hundred
 milliseconds before Flutter starts are the same surface as the first frame rather
 than a white — or, in dark mode, black — flash. `res/values-v31/` and
 `res/values-night-v31/` do the same for Android 12's system splash, which reads
-`windowSplashScreenBackground` instead of `windowBackground`. `splash_test.dart`
-asserts the XML and the Dart backdrop carry the same three values.
+`windowSplashScreenBackground` instead of `windowBackground`, and also set that
+splash's *icon* to a blank drawable (`res/drawable/splash_icon.xml`). Left alone,
+Android draws the app's launcher icon there — the shop's mark, motionless — and
+the video then animates the same mark, which reads as the same drawing twice,
+once dead. The video's opening frame has no logo in it, so the backdrop alone is
+what actually continues into the film. `splash_test.dart` asserts the XML and the
+Dart backdrop carry the same three values.
 
 **Nothing here can strand a user.** A video that will not load, a decoder that
 reports an error and a playback that stalls all fall through to the next screen;
@@ -241,7 +246,8 @@ the splash is never why the app did not open. That path is tested directly.
 Cost: the clip is 1.1 MB, and `video_player` brings ExoPlayer (media3) in on
 Android. The APK went from 27.5 MB to 29.3 MB, of which 1.1 MB is the video
 itself; R8 shrinks the rest. `scripts/verify-release-apk.mjs` checks the video
-came out the other side byte for byte, because `isShrinkResources = true` is on.
+came out the other side byte for byte, because `isShrinkResources = true` is on,
+and that the system splash has no icon in it.
 
 ## The site side
 
