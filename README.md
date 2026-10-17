@@ -336,10 +336,10 @@ rather than proceeding, and checks `search_model` from the catalog against
   did not.** The release build shipped with no `INTERNET` permission (Flutter's
   template puts it only in the debug manifest), the product grid overlapped
   itself by 341px, and the system splash repeated the video's own mark. All three
-  are now covered by tests, but the wider claim stands: one handset is not a test
-  matrix. The R8-obfuscated build now installs and opens on that handset; what
-  remains unconfirmed on hardware is that a search query under R8 ranks as the
-  site does.
+  are now covered by tests, and the R8-obfuscated build has since been exercised
+  by hand on that handset — the splash, its audio, and both a misspelled query
+  and one asked by meaning. The wider claim stands unchanged: one handset is not
+  a test matrix.
 
 ## Third party
 

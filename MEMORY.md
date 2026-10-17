@@ -34,10 +34,12 @@ self-contained.
   it byte-for-byte".
 - **What is proven and what is not:** analyze clean, 94 Dart tests, 9 Rust parity
   tests, and 28 checks against the built APK
-  (`scripts/verify-release-apk.mjs`). None of that is a phone, though. One
-  handset has run the app, and the launch video and the corrected system splash
-  were confirmed on it — but not the R8-obfuscated build, which is still the one
-  thing nobody has executed on hardware.
+  (`scripts/verify-release-apk.mjs`). None of that is a phone, though. One handset
+  has run the app and confirmed what the artifact checks could not: the launch
+  video with its audio, the corrected system splash, and — on the R8-obfuscated
+  build — both halves of search, a misspelling and a query by meaning. No claim
+  now rests on "verified but never executed". What remains is the ordinary
+  caveat: one handset is not a test matrix.
 
 ---
 
@@ -900,11 +902,11 @@ anything is pushed.
 - [x] ~~Run the signed, obfuscated APK on a device~~ — done in effect: the `v1.1`
       artifact (release key, R8, `versionCode=2`) is what was installed and
       opened when the splash was confirmed.
-- [ ] **Still unconfirmed on hardware: that a search query under R8 ranks as the
-      site does.** The artifact checks show all ten FFI symbols survive and that
-      R8 never saw them (§3), and the obfuscated build now launches on a handset
-      without anything breaking — but nobody has typed a query on it and compared
-      the order. Cheap to close now that a handset has the app.
+- [x] ~~Confirm that search under R8 ranks as the site does~~ — done. Both ends
+      were exercised by hand on the obfuscated build, a misspelled query and a
+      query by meaning, each returning what the site returns. R8 structurally
+      cannot reach the path (§3); the point of doing it anyway was that
+      "structurally cannot" is an argument, and this was the check.
 - [x] ~~Find the forward-pass divergence~~ — solved, see §3.
 
 ### The bridge is hand-written, not generated
