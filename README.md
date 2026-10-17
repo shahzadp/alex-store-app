@@ -326,19 +326,20 @@ rather than proceeding, and checks `search_model` from the catalog against
   ABIs it cannot run. On an x86_64 emulator the app installs and browses with
   search disabled (`engineUnavailable`); `node scripts/build-apk.mjs --abis
   android-x64` fixes that for local work.
-- **The launch video has not been played on hardware.** What is verified is the
-  artifact: the clip is in the APK byte for byte, the FFI path still survives R8,
-  and the fade matches the composition's frame for frame. Nobody has watched
-  ExoPlayer decode it, heard the audio, or seen Android 12's system splash on a
-  device. The deadline that stops a stalled video stranding the app is tested,
-  but the decode itself is not.
+- **The launch video is confirmed on one device now, and that is how the system
+  splash defect was found.** The clip plays with its audio and the fade matches
+  the composition; what made the first attempt wrong — Android drawing its own
+  copy of the mark before the video animated it — was invisible to every check
+  here and obvious on a handset the moment it opened. The Android 12 system
+  splash and the video's decode are now confirmed, not just verified as bytes.
 - **The app has run on one device, and device testing found things unit tests
   did not.** The release build shipped with no `INTERNET` permission (Flutter's
-  template puts it only in the debug manifest), and the product grid overlapped
-  itself by 341px. Both are now covered by tests, but the wider claim stands:
-  one handset is not a test matrix. For the same reason, the R8-obfuscated build
-  has not been run on hardware — what is verified about it is the artifact, not
-  the phone.
+  template puts it only in the debug manifest), the product grid overlapped
+  itself by 341px, and the system splash repeated the video's own mark. All three
+  are now covered by tests, but the wider claim stands: one handset is not a test
+  matrix. The R8-obfuscated build now installs and opens on that handset; what
+  remains unconfirmed on hardware is that a search query under R8 ranks as the
+  site does.
 
 ## Third party
 

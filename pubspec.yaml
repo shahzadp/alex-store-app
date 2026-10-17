@@ -8,11 +8,16 @@ publish_to: "none"
 # changes, which means the version here is the only place a user-visible
 # version number lives.
 #
-# Was 0.1.0+1, which matched nothing: the published release is tagged v1.0, so
-# the APK's reported versionName disagreed with the release it came from. Same
-# reason the build number is not bumped here — this is the v1.0 artifact being
-# built properly (real key, R8), not a new version of it.
-version: 1.0.0+1
+# 1.0.0+1 was the first release, and it was then rebuilt twice under the same
+# version — once for the real signing key and R8, once for the launch video —
+# on the grounds that neither was a new version of the app. That was wrong.
+# It left three different binaries all claiming 1.0.0+1, and Android compares
+# versionCode, so anyone holding one of them would never be offered another:
+# an equal versionCode is the same version as far as the installer is
+# concerned, whatever the bytes are. Anything published from here on gets its
+# own versionCode, and the number below is bumped whenever the artifact changes
+# rather than only when the feature set does.
+version: 1.1.0+2
 
 environment:
   sdk: ">=3.5.0 <4.0.0"

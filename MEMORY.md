@@ -28,14 +28,16 @@ self-contained.
 - **Search matches the site.** The native engine reproduces the WASM's vectors
   bit-exactly (worst per-dimension difference `0.000e+0`), so the app's rankings
   are the site's rankings. See §3.
-- **The release is signed with a real key and obfuscated with R8.** `v1.0` is
-  published and the site's button delivers it. See §3, "Signed with a real key,
-  and R8 could not have touched the search path".
+- **The release is signed with a real key and obfuscated with R8.** `v1.1` is
+  published — the launch video and the corrected system splash — and the site's
+  button delivers it. See §3, "The release is published, and the button delivers
+  it byte-for-byte".
 - **What is proven and what is not:** analyze clean, 94 Dart tests, 9 Rust parity
   tests, and 28 checks against the built APK
   (`scripts/verify-release-apk.mjs`). None of that is a phone, though. One
-  handset has ever run this app; it has not run the R8-obfuscated build, and it
-  has never played the launch video.
+  handset has run the app, and the launch video and the corrected system splash
+  were confirmed on it — but not the R8-obfuscated build, which is still the one
+  thing nobody has executed on hardware.
 
 ---
 
@@ -555,18 +557,29 @@ deleted rather than committed.
 
 ### The release is published, and the button delivers it byte-for-byte
 
-`v1.0` is live at
-`https://github.com/shahzadp/alex-store-app/releases/tag/v1.0` with `alex-store.apk`
-attached, and the site's download button points at it.
+`v1.1` is live at
+`https://github.com/shahzadp/alex-store-app/releases/tag/v1.1` with `alex-store.apk`
+attached, and the site's download button points at it. `v1.0` is still there for
+anyone who wants it; the site does not, because its URL is the `latest` form.
 
 The URL uses the **`latest`** form, not the tag:
 
     https://github.com/shahzadp/alex-store-app/releases/latest/download/alex-store.apk
 
-so the next release needs no change to `Store/build.config.json`. Both that and
-`/download/v1.0/alex-store.apk` return 200; the older note in the config file
-said `/releases/download/latest/apk/...`, which 404s — the asset goes directly
-after `download`, not under a `latest/` path.
+so a new release needs **no change at all** to `Store/build.config.json`, and no
+site rebuild: the button's markup is `Download APK` with no version in it, and the
+landing page carries none either. Both that URL and
+`/download/v1.1/alex-store.apk` return 200; the older note in the config file said
+`/releases/download/latest/apk/...`, which 404s — the asset goes directly after
+`download`, not under a `latest/` path.
+
+**Bump the versionCode for every published artifact.** `v1.0` was rebuilt twice
+after release under the same `1.0.0+1` (the real signing key and R8, then the
+launch video) because neither looked like a new version of the app. That is a
+trap: Android compares versionCode, so all three binaries were the *same version*
+to the installer and an update between them would never have been offered. `v1.1`
+is `1.1.0+2`, and `pubspec.yaml` now says the number follows the artifact rather
+than the feature set.
 
 Verified end to end rather than by inspection: fetched the **live** site's button
 href, followed it, and compared the SHA-256 of the bytes delivered against the
@@ -881,14 +894,17 @@ anything is pushed.
 
 **Blocking**
 
-- [ ] **Run the signed, obfuscated APK on a device.** Everything about it is
-      verified at the artifact level (§3); nothing has been *executed* on
-      hardware. This is the one part of the claim `verify-release-apk.mjs` cannot
-      make for you.
-- [ ] **Watch the launch video on a device.** Same gap, specific to the splash:
-      the clip is in the APK byte for byte and the fade matches the composition,
-      but ExoPlayer decoding it, the audio, and Android 12's system splash have
-      not been seen. See §3, "The launch video".
+- [x] ~~Watch the launch video on a device~~ — done. Confirmed on the handset,
+      along with the corrected Android 12 system splash — which was the only way
+      that one was ever going to be found (§3, "The launch video").
+- [x] ~~Run the signed, obfuscated APK on a device~~ — done in effect: the `v1.1`
+      artifact (release key, R8, `versionCode=2`) is what was installed and
+      opened when the splash was confirmed.
+- [ ] **Still unconfirmed on hardware: that a search query under R8 ranks as the
+      site does.** The artifact checks show all ten FFI symbols survive and that
+      R8 never saw them (§3), and the obfuscated build now launches on a handset
+      without anything breaking — but nobody has typed a query on it and compared
+      the order. Cheap to close now that a handset has the app.
 - [x] ~~Find the forward-pass divergence~~ — solved, see §3.
 
 ### The bridge is hand-written, not generated
