@@ -40,6 +40,12 @@ self-contained.
   this device can open the link". The versionCode is bumped because an equal one
   is the same version to the installer, so the fix would never have been offered
   as an update.
+- **The repository is not open source, and GitHub now agrees.** `LICENSE` is
+  all-rights-reserved over the app, its name, icon and video; the vendored
+  ternlight MIT notice moved to `THIRD_PARTY_NOTICES.md` so the licence detector
+  stops reading it as this repository's licence. The signing certificate
+  fingerprint in `docs/assetlinks.json` is what README offers as proof of an
+  official download. See §3, "GitHub badge read MIT License".
 - **What is proven and what is not:** analyze clean, 98 Dart tests, 9 Rust parity
   tests, and 30 checks against the built APK
   (`scripts/verify-release-apk.mjs`). None of that is a phone, though. One handset
@@ -918,6 +924,61 @@ verified and the failure paths are tested, but ExoPlayer decoding the file, the
 audio being audible, and Android 12's system splash were not observed on any
 device — there is still no emulator and no handset here.
 
+### GitHub badge read "MIT License" for the whole time this repo was public
+
+No file said that. There was no `LICENSE` at the root, so the real position was
+all rights reserved and the badge was simply wrong - and wrong in the one
+direction that grants something away: it advertised permission to reuse the app,
+its icon, its name and its launch video, for a shop whose only purchase path is a
+WhatsApp message.
+
+The cause was a filename. `THIRD_PARTY_TERNLIGHT_LICENSE` sat at the root holding
+the MIT text for the vendored ternlight engine (c) Wenshu Tang, and the licence
+detector reported it as *this repository's* licence:
+
+```
+$ gh api "repos/shahzadp/alex-store-app/license?ref=2488706" --jq '{path, key: .license.key}'
+{"path":"THIRD_PARTY_TERNLIGHT_LICENSE","key":"mit"}
+```
+
+A third-party notice, read as a project licence, granting rights over the wrong
+thing entirely.
+
+The fix has two halves, and only the second one silences the detector:
+
+- `LICENSE` at the root, all rights reserved, naming the name, the icon
+  (`assets/icon/`, `mipmap-*/ic_launcher.png`) and `assets/splash/alex-store.mp4`
+  explicitly rather than relying on "no licence means no rights", because the
+  public badge had already said otherwise for months. Third-party components are
+  carved out there and stay permissive: they are not this project's to relicense.
+- `THIRD_PARTY_TERNLIGHT_LICENSE` -> `THIRD_PARTY_NOTICES.md`. **What stops the
+  detector is the name, not the licence file.** A root filename that does not look
+  like a licence is what puts the detector on the real `LICENSE`; the MIT text
+  itself is kept verbatim, which is what MIT requires.
+
+**A licence badge is a claim, and nothing here was checking it.** Verified after
+pushing rather than assumed:
+
+```
+$ gh api repos/shahzadp/alex-store-app/license --jq '{path, key: .license.key, spdx: .license.spdx_id}'
+{"path":"LICENSE","key":"other","spdx":"NOASSERTION"}
+```
+
+`NOASSERTION` is what all-rights-reserved looks like from GitHub's side. The
+lesson generalises well past licensing: GitHub states facts about this repository
+that anybody can read, and this one had been read for months without anyone here
+looking at it.
+
+**Branding cannot prove authenticity, so the signature has to.** The icon and the
+shop's number are public by nature, which means a convincing fake is assembled
+from the same parts as the real thing and is pixel-identical at the level a
+shopper can check. README's "The official download, and how to check it" therefore
+leads with the signing certificate fingerprint from `docs/assetlinks.json` and the
+script that verifies every release against it, and says plainly that a page
+wearing the right name and icon proves nothing. The certificate is the one thing a
+copier cannot reproduce, and Android's refusal to install a differently-signed
+update over an installed copy is what makes that concrete rather than rhetorical.
+
 ---
 
 ## 4. Ordering rules inherited from the store
@@ -1091,6 +1152,7 @@ Both files are a pair: change one, change the other.
 | R8 rules (deliberately near-empty) | `android/app/proguard-rules.pro` |
 | Release APK verification | `scripts/verify-release-apk.mjs` |
 | App Links fingerprint | `docs/assetlinks.json` |
+| Licence, and third-party notices | `LICENSE`, `THIRD_PARTY_NOTICES.md` |
 | Model recovery + SHA-256 | `scripts/extract-model-from-wasm.mjs` |
 | Fixture extraction | `scripts/extract-site-vectors.mjs` |
 | Domain model | `lib/src/models/catalog.dart` |
