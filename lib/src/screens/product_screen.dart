@@ -123,17 +123,16 @@ class _ProductScreenState extends State<ProductScreen> {
 
               _Section(
                 title: 'Full description',
-                // The long copy is inside a bounded, scrollable box on the
-                // site so the specifications table stays visible. Same here —
-                // otherwise this section pushes the WhatsApp button off-screen.
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxHeight: 260),
-                  child: SingleChildScrollView(
-                    child: Text(
-                      product.details.isEmpty ? product.description : product.details,
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: StoreTheme.inkBody),
-                    ),
-                  ),
+                // Grows with its copy rather than scrolling inside a fixed
+                // height, matching the site. A capped box hid the end of a long
+                // write-up behind an inner scrollbar; the page is the only
+                // thing that scrolls.
+                child: Text(
+                  product.details.isEmpty ? product.description : product.details,
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodyLarge
+                      ?.copyWith(color: StoreTheme.inkBody),
                 ),
               ),
             ],
