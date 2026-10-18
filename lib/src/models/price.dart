@@ -41,6 +41,16 @@ class Price implements Comparable<Price> {
   Price operator +(Price other) => Price.paisa(paisa + other.paisa);
   Price operator -(Price other) => Price.paisa((paisa - other.paisa).clamp(0, 1 << 62));
 
+  /// This price increased by [percent] per cent, rounded to the nearest paisa.
+  ///
+  /// Integer arithmetic only — like everything else in this file, a price never
+  /// touches a double. Used for the delivery-included figure shown struck
+  /// through beside the price the shopper actually pays.
+  Price plusPercent(int percent) {
+    if (percent <= 0) return this;
+    return Price.paisa((paisa * (100 + percent) + 50) ~/ 100);
+  }
+
   bool operator <(Price other) => paisa < other.paisa;
   bool operator >(Price other) => paisa > other.paisa;
   bool operator <=(Price other) => paisa <= other.paisa;

@@ -36,6 +36,7 @@ Product aProduct() => Product(
           'as well as it looks doing it. The foot is left unglazed, which '
           'stops it sticking to a shelf or a table.',
       specs: const {},
+      options: const [],
       imageUrl: null,
       tint: '#D9CCEA',
       vector: Float32List(384),
@@ -89,7 +90,7 @@ void main() {
       expect(message, contains("Hi Alex Store! I'd like to order:"));
       expect(message, contains('*Stoneware Mug*'),
           reason: 'the site uses WhatsApp *bold* for the product name');
-      expect(message, contains('Kitchen - Rs 7,800'),
+      expect(message, contains('Kitchen — Rs 7,800'),
           reason: 'the site sends the category as well as the price');
       expect(message, contains('Is it available?'));
     });
@@ -123,6 +124,7 @@ void main() {
         description: 'Ceramic, for salt & pepper.',
         details: '',
         specs: const {},
+        options: const [],
         imageUrl: null,
         tint: null,
         vector: Float32List(384),

@@ -31,6 +31,7 @@ Product product(String slug, String description, {bool inStock = true}) =>
       description: description,
       details: 'd',
       specs: const {},
+      options: const [],
       imageUrl: null,
       tint: '#D9CCEA',
       vector: Float32List(384),

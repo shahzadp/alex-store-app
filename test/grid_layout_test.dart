@@ -33,6 +33,7 @@ Product product(String slug, String name, String description) => Product(
       description: description,
       details: 'details',
       specs: const {},
+      options: const [],
       imageUrl: null,
       tint: '#D9CCEA',
       vector: Float32List(384),

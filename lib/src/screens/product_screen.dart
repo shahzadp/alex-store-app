@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../catalog_scope.dart';
 import '../services/catalog_service.dart';
 import '../models/catalog.dart';
+import '../models/price.dart';
 import '../services/launcher.dart';
 import '../services/whatsapp.dart';
 import '../theme.dart';
@@ -26,10 +27,30 @@ import '../widgets/product_image.dart';
 ///   * `details` — the long write-up, in the "Full description" box;
 ///   * `specs` — the structured table, omitted entirely when empty rather
 ///     than rendered as an empty box.
-class ProductScreen extends StatelessWidget {
+class ProductScreen extends StatefulWidget {
   const ProductScreen({super.key, required this.slug});
 
   final String slug;
+
+  @override
+  State<ProductScreen> createState() => _ProductScreenState();
+}
+
+class _ProductScreenState extends State<ProductScreen> {
+  /// Chosen add-ons, by key. A preference, never a price: it is carried into the
+  /// WhatsApp message and nothing else. Nothing is selected to begin with, so
+  /// the buyer opts in rather than out — matching the site's unticked boxes.
+  final Set<String> _selected = <String>{};
+
+  void _setOption(String key, bool on) {
+    setState(() {
+      if (on) {
+        _selected.add(key);
+      } else {
+        _selected.remove(key);
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -40,7 +61,7 @@ class ProductScreen extends StatelessWidget {
       initialData: service.state,
       builder: (context, snapshot) {
         final catalog = (snapshot.data ?? CatalogState.empty).catalog;
-        final product = catalog?.bySlug(slug);
+        final product = catalog?.bySlug(widget.slug);
 
         // The catalog can be replaced by a refresh while this screen is open.
         // A slug that no longer exists is a deleted product, not an error to
@@ -73,10 +94,23 @@ class ProductScreen extends StatelessWidget {
               const SizedBox(height: StoreTheme.spaceSm),
               _Category(category: product.category),
               const SizedBox(height: StoreTheme.spaceMd),
-              _PriceBlock(product: product),
+              _PriceBlock(
+                product: product,
+                // The delivery-included total, shown struck through beside the
+                // price. Null when the catalog sets no delivery percentage.
+                included: catalog?.store.deliveryIncluded(product.price),
+              ),
               const SizedBox(height: StoreTheme.spaceLg),
               Text(product.description,
                   style: Theme.of(context).textTheme.bodyLarge),
+              if (product.options.isNotEmpty) ...[
+                const SizedBox(height: StoreTheme.spaceLg),
+                _Options(
+                  options: product.options,
+                  selected: _selected,
+                  onChanged: _setOption,
+                ),
+              ],
               const SizedBox(height: StoreTheme.spaceXxl),
 
               if (product.specs.isNotEmpty) ...[
@@ -104,7 +138,8 @@ class ProductScreen extends StatelessWidget {
               ),
             ],
           ),
-          bottomNavigationBar: _WhatsAppBar(product: product),
+          bottomNavigationBar:
+              _WhatsAppBar(product: product, selected: _selected),
         );
       },
     );
@@ -140,9 +175,13 @@ class _Category extends StatelessWidget {
 }
 
 class _PriceBlock extends StatelessWidget {
-  const _PriceBlock({required this.product});
+  const _PriceBlock({required this.product, this.included});
 
   final Product product;
+
+  /// The price with delivery added, struck through before the price itself, or
+  /// null when the catalog sets no delivery percentage.
+  final Price? included;
 
   @override
   Widget build(BuildContext context) {
@@ -166,13 +205,126 @@ class _PriceBlock extends StatelessWidget {
 
     // The price is the loudest thing under the name, which is where a shopper
     // looks for it and where every shop they have used puts it.
-    return Text(
+    final now = Text(
       product.price.formatted,
       style: theme.textTheme.headlineMedium?.copyWith(
         color: StoreTheme.ink,
         letterSpacing: -0.4,
       ),
     );
+
+    if (included == null) return now;
+
+    // Wrap rather than Row: if both figures will not fit they fall onto a
+    // second line instead of overflowing, which is the only place on this
+    // screen either could be long enough to matter.
+    return Wrap(
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: StoreTheme.spaceSm,
+      children: [
+        Semantics(
+          // Mirrors the site's `aria-label` on `.price__was`, so the strikethrough
+          // is explained rather than read as a second price.
+          label: '${included!.formatted} including delivery',
+          excludeSemantics: true,
+          child: Text(
+            included!.formatted,
+            style: theme.textTheme.headlineMedium?.copyWith(
+              // 0.92em of the 24px price, the site's own ratio.
+              fontSize: 22,
+              fontWeight: FontWeight.w400,
+              color: StoreTheme.inkMuted,
+              decoration: TextDecoration.lineThrough,
+              decorationColor: StoreTheme.inkMuted,
+            ),
+          ),
+        ),
+        now,
+      ],
+    );
+  }
+}
+
+/// Selectable add-ons, such as a cold drink.
+///
+/// A preference, not a price: the choice — and any surcharge, shown beneath the
+/// name — is carried into the WhatsApp message and never changes the total on
+/// the page, so a tick is an answer to the shop rather than a line on the bill.
+/// Nothing is ticked to begin with — the buyer opts in.
+class _Options extends StatelessWidget {
+  const _Options({
+    required this.options,
+    required this.selected,
+    required this.onChanged,
+  });
+
+  final List<ProductOption> options;
+  final Set<String> selected;
+  final void Function(String key, bool on) onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('ADD-ONS', style: theme.textTheme.labelSmall),
+        const SizedBox(height: StoreTheme.spaceMd),
+        // The card look (border, radius, lift) is on the Container; the surface
+        // colour is on the Material inside it. A ListTile paints its ink on the
+        // nearest Material, and a coloured DecoratedBox between the two would
+        // swallow every splash.
+        Container(
+          width: double.infinity,
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            border: Border.all(color: StoreTheme.line),
+            borderRadius: StoreTheme.rMd,
+            boxShadow: StoreTheme.shadowSm,
+          ),
+          child: Material(
+            color: StoreTheme.surface,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: StoreTheme.spaceMd,
+                vertical: StoreTheme.spaceSm,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (final option in options)
+                    CheckboxListTile(
+                      value: selected.contains(option.key),
+                      onChanged: (v) => onChanged(option.key, v ?? false),
+                      title:
+                          Text(option.label, style: theme.textTheme.bodyMedium),
+                      subtitle: _meta(option, theme),
+                      controlAffinity: ListTileControlAffinity.leading,
+                      contentPadding: EdgeInsets.zero,
+                      dense: true,
+                      visualDensity: VisualDensity.compact,
+                      activeColor: StoreTheme.accent,
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// "500ml · + Rs 100" under an add-on's name, or null when it carries
+  /// neither. The surcharge is shown here, on the choice, rather than folded
+  /// into the price above — the page price never changes with a choice.
+  Widget? _meta(ProductOption option, ThemeData theme) {
+    final parts = <String>[
+      if (option.desc.isNotEmpty) option.desc,
+      if (option.price.paisa > 0) '+ ${option.price.formatted}',
+    ];
+    if (parts.isEmpty) return null;
+    return Text(parts.join(' · '), style: theme.textTheme.bodySmall);
   }
 }
 
@@ -265,9 +417,12 @@ class _SpecsTable extends StatelessWidget {
 /// link: CATALOG-GUIDE.md §7 — sold out means `in_stock = 0` and the card says
 /// so, rather than pretending to be purchasable.
 class _WhatsAppBar extends StatelessWidget {
-  const _WhatsAppBar({required this.product});
+  const _WhatsAppBar({required this.product, required this.selected});
 
   final Product product;
+
+  /// Chosen add-on keys. Stated in the message either way, matching the site.
+  final Set<String> selected;
 
   @override
   Widget build(BuildContext context) {
@@ -294,7 +449,8 @@ class _WhatsAppBar extends StatelessWidget {
                           context: context,
                           number: catalog?.store.whatsapp ?? '',
                           message: product.whatsappMessage(
-                              catalog?.store.name ?? 'Alex Store'),
+                              catalog?.store.name ?? 'Alex Store',
+                              selectedOptions: selected),
                         ),
                         child: Text.rich(
                           whatsappButtonLabel(

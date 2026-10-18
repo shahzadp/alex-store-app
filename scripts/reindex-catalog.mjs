@@ -188,6 +188,9 @@ const created = Catalog.createProduct({
   description: spec.description,
   details: spec.details ?? '',
   specs: JSON.stringify(spec.specs ?? {}),
+  // Selectable add-ons (e.g. "Cold drink"). A preference carried into the
+  // WhatsApp message, never a price. Omitted means the product has none.
+  options: JSON.stringify(spec.options ?? []),
   category: spec.category ?? 'General',
   price_cents: Number(spec.price_cents),
   image_url: spec.image_url ?? null,

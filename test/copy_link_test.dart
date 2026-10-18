@@ -23,6 +23,7 @@ Product aProduct() => Product(
       description: 'An unlacquered brass tray.',
       details: 'd',
       specs: const {},
+      options: const [],
       imageUrl: null,
       tint: '#D9CCEA',
       vector: Float32List(384),

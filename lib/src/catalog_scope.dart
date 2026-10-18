@@ -31,6 +31,15 @@ class CatalogScope extends InheritedWidget {
     return scope!.service;
   }
 
+  /// The service when a scope is present, else null.
+  ///
+  /// Some widgets have to work with and without the app around them — the
+  /// product card is pumped bare by the layout and geometry tests — so they read
+  /// the store through this rather than [of]. The absence of a scope then
+  /// degrades to "no catalog", not an assertion.
+  static CatalogService? maybeOf(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<CatalogScope>()?.service;
+
   @override
   bool updateShouldNotify(CatalogScope oldWidget) => oldWidget.service != service;
 }

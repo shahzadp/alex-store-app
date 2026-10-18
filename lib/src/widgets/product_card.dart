@@ -20,6 +20,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../catalog_scope.dart';
 import '../models/catalog.dart';
 import '../theme.dart';
 import '../widgets/product_image.dart';
@@ -160,6 +161,11 @@ class _SoldOutVeil extends StatelessWidget {
 /// These were on one line and overflowed a two-column cell by 134px: "Order on
 /// WhatsApp" is wider than half a phone. Stacked, the block is a fixed height
 /// that fits any cell width.
+///
+/// When the catalog carries a `delivery_percent`, the delivery-included figure
+/// is shown struck through *before* the price — the same two spans the site
+/// renders (`.price__was` then `.price__now`). The price itself never changes.
+/// They share one line, so the card's reserved height is untouched.
 class _PriceRow extends StatelessWidget {
   const _PriceRow({required this.product});
 
@@ -178,15 +184,41 @@ class _PriceRow extends StatelessWidget {
       );
     }
 
+    final store = CatalogScope.maybeOf(context)?.state.catalog?.store;
+    final included = store?.deliveryIncluded(product.price);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(
-          product.price.formatted,
+        Text.rich(
+          TextSpan(
+            children: [
+              if (included != null)
+                TextSpan(
+                  text: '${included.formatted}  ',
+                  // 13 against the 14px price is the site's 0.92em, and the same
+                  // struck-through grey.
+                  style: const TextStyle(
+                    color: StoreTheme.inkMuted,
+                    fontWeight: FontWeight.w400,
+                    fontSize: 13,
+                    decoration: TextDecoration.lineThrough,
+                    decorationColor: StoreTheme.inkMuted,
+                  ),
+                ),
+              TextSpan(text: product.price.formatted),
+            ],
+          ),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: theme.textTheme.titleSmall,
+          // Mirrors the site's `aria-label` on the struck span, so a screen
+          // reader hears what the strikethrough means rather than two numbers.
+          semanticsLabel: included == null
+              ? null
+              : '${included.formatted} including delivery. '
+                  '${product.price.formatted}',
         ),
         const SizedBox(height: 2),
         Text(

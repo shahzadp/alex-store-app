@@ -4,12 +4,16 @@ import 'package:flutter/material.dart';
 
 import 'src/catalog_scope.dart';
 import 'src/models/catalog.dart';
+import 'src/models/price.dart';
 import 'src/screens/home_screen.dart';
 import 'src/screens/product_screen.dart';
 import 'src/screens/splash_screen.dart';
 import 'src/services/catalog_service.dart';
 import 'src/services/deep_link_service.dart';
+import 'src/services/voucher_store.dart';
+import 'src/services/whatsapp.dart';
 import 'src/theme.dart';
+import 'src/widgets/voucher_prompt.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -103,6 +107,14 @@ class _AlexStoreAppState extends State<AlexStoreApp> {
           fit: StackFit.expand,
           children: [
             if (child != null) child,
+            // The claimable voucher, shown once over the shop. It is gated on
+            // the splash so it does not fight the launch video for the first
+            // impression; `enabled` flips true the moment the video is gone.
+            //
+            // It sits BELOW the splash in paint order so the video still covers
+            // it during launch, and at a stable index so its seen-marker read is
+            // not thrown away when the splash leaves the tree.
+            _VoucherGate(enabled: _splashDone),
             if (!_splashDone) SplashScreen(onFinished: _onSplashFinished),
           ],
         ),
@@ -114,5 +126,97 @@ class _AlexStoreAppState extends State<AlexStoreApp> {
   void _onSplashFinished() {
     if (!mounted || _splashDone) return;
     setState(() => _splashDone = true);
+  }
+}
+
+/// Shows the free-delivery voucher once, and never again.
+///
+/// The old announcement strip said the same thing above every screen. This is
+/// the same offer announced a single time. It waits for the splash AND for the
+/// catalog — the wording lives in `catalog.json` so the app and the site cannot
+/// disagree about it — and falls back to the plain threshold line when the
+/// catalog carries no voucher copy, so the offer is never silently lost.
+class _VoucherGate extends StatefulWidget {
+  const _VoucherGate({required this.enabled});
+
+  /// False until the launch video has finished. Nothing is read or shown before
+  /// then.
+  final bool enabled;
+
+  @override
+  State<_VoucherGate> createState() => _VoucherGateState();
+}
+
+class _VoucherGateState extends State<_VoucherGate> {
+  final VoucherStore _store = VoucherStore();
+
+  /// The seen-marker read. Null until the splash is done, so no disk work
+  /// happens behind the video.
+  Future<bool>? _seen;
+
+  /// Latched once the shopper claims or dismisses, so the prompt does not come
+  /// straight back on the next catalog frame.
+  bool _done = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.enabled) _seen = _store.hasSeen();
+  }
+
+  @override
+  void didUpdateWidget(covariant _VoucherGate old) {
+    super.didUpdateWidget(old);
+    if (widget.enabled && !old.enabled) {
+      setState(() => _seen = _store.hasSeen());
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final seen = _seen;
+    if (!widget.enabled || seen == null || _done) {
+      return const SizedBox.shrink();
+    }
+
+    final service = CatalogScope.of(context);
+    return FutureBuilder<bool>(
+      future: seen,
+      builder: (context, seenSnapshot) {
+        // Unknown or already seen: show nothing. An error reading the marker
+        // fails open in the same direction as `hasSeen` — see VoucherStore.
+        if (seenSnapshot.data != false) return const SizedBox.shrink();
+
+        return StreamBuilder<CatalogState>(
+          stream: service.stream,
+          initialData: service.state,
+          builder: (context, snapshot) {
+            final catalog = (snapshot.data ?? CatalogState.empty).catalog;
+            if (catalog == null) return const SizedBox.shrink();
+
+            final voucher = catalog.store.voucher;
+            final fallback = announcementFor(
+              freeDeliveryOverPaisa: catalog.store.freeDeliveryOver.paisa,
+              format: (paisa) => Price.paisa(paisa).formatted,
+            );
+            final title = voucher.isEmpty ? fallback : voucher.title;
+            if (title == null || title.isEmpty) return const SizedBox.shrink();
+
+            return VoucherPrompt(
+              title: title,
+              description: voucher.description,
+              code: voucher.code,
+              terms: voucher.terms,
+              // Marked seen whether it is claimed or dismissed: the offer is a
+              // first-visit gesture, not a nag the shopper has to keep closing.
+              onClose: (_) {
+                _store.markSeen();
+                setState(() => _done = true);
+              },
+            );
+          },
+        );
+      },
+    );
   }
 }

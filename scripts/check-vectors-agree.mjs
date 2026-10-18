@@ -57,7 +57,12 @@ if (missing.length) bad.push(`in catalog.json but not catalog.sql: ${missing.joi
 // passed, even though catalog.json was one product short. That is the exact
 // failure this script exists to catch, and the direction it is easiest to hit:
 // add the product, forget to regenerate.
-const productsBlock = /INSERT INTO products \([^)]*\) VALUES([\s\S]*?);/.exec(sql);
+// The products block ends at ON CONFLICT, NOT at the first `;`: a product's
+// copy is free text and routinely contains one ("Served with ketchup; ask for
+// chilli garlic instead"), which a `VALUES([\s\S]*?);` match would treat as the
+// end of the block — quietly shrinking this check to whatever fitted before
+// the first semicolon.
+const productsBlock = /INSERT INTO products \([^)]*\) VALUES([\s\S]*?)\r*\n\s*ON CONFLICT/.exec(sql);
 const productSlugs = new Set(
   [...(productsBlock?.[1] ?? '').matchAll(/\('([a-z0-9-]+)'/g)].map((x) => x[1]),
 );

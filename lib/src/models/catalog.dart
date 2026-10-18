@@ -10,12 +10,49 @@ import 'dart:typed_data';
 
 import 'price.dart';
 
+/// The free-delivery offer, as a claimable voucher.
+///
+/// Replaces the old top strip: the offer is still the same benefit, but it is
+/// announced once (see `voucher_prompt.dart`) rather than pinned above every
+/// screen. The wording lives in the catalog, so the app and the site cannot
+/// drift apart on what the voucher says.
+class Voucher {
+  const Voucher({
+    required this.title,
+    required this.code,
+    required this.description,
+    required this.terms,
+  });
+
+  final String title;
+  final String code;
+  final String description;
+  final String terms;
+
+  /// True when there is nothing worth announcing.
+  bool get isEmpty => title.isEmpty;
+
+  static const Voucher none =
+      Voucher(title: '', code: '', description: '', terms: '');
+
+  factory Voucher.fromJson(Map<String, dynamic> json) {
+    return Voucher(
+      title: (json['title'] as String?)?.trim() ?? '',
+      code: (json['code'] as String?)?.trim() ?? '',
+      description: (json['description'] as String?)?.trim() ?? '',
+      terms: (json['terms'] as String?)?.trim() ?? '',
+    );
+  }
+}
+
 /// The store's settings block.
 class Store {
   const Store({
     required this.name,
     required this.whatsapp,
     required this.freeDeliveryOver,
+    required this.deliveryPercent,
+    required this.voucher,
     required this.currency,
   });
 
@@ -31,15 +68,29 @@ class Store {
   /// and "600000" end up in the same expression.
   final Price freeDeliveryOver;
 
+  /// Delivery, as a percentage of the order (`settings.delivery_percent`).
+  /// Zero means the catalog carries no delivery pricing and no struck-through
+  /// figure is shown anywhere.
+  final int deliveryPercent;
+
+  /// The claimable free-delivery offer. [Voucher.isEmpty] when unset.
+  final Voucher voucher;
+
   /// Always `PKR`. There is no currency selector and no USD anywhere in this
   /// store; the field exists only so the app can assert that rather than
   /// assume it.
   final String currency;
 
+  /// What delivery would add to [price], or null when no percentage is set.
+  Price? deliveryIncluded(Price price) =>
+      deliveryPercent > 0 ? price.plusPercent(deliveryPercent) : null;
+
   static const Store empty = Store(
     name: 'Alex Store',
     whatsapp: '',
     freeDeliveryOver: Price.zero,
+    deliveryPercent: 0,
+    voucher: Voucher.none,
     currency: 'PKR',
   );
 
@@ -51,9 +102,43 @@ class Store {
           : 'Alex Store',
       whatsapp: wa.replaceAll(RegExp(r'[^0-9]'), ''),
       freeDeliveryOver: Price.paisa(_asInt(json['free_delivery_over_paisa'])),
+      deliveryPercent: _asInt(json['delivery_percent']),
+      voucher: Voucher.fromJson(
+        (json['voucher'] as Map?)?.cast<String, dynamic>() ?? const {},
+      ),
       currency: (json['currency'] as String?) ?? 'PKR',
     );
   }
+}
+
+/// A selectable add-on on a product, such as "Cold drink (500ml)".
+///
+/// A preference, not a price: [price] is an optional surcharge stated in the
+/// WhatsApp order message so the shop knows what to pack and what it costs, but
+/// the price shown on the page never changes with the choice — the same rule the
+/// site follows. [key] is the stable identifier (derived from the label by the
+/// site), [label] is what the shopper reads, and [desc] is optional detail, such
+/// as the bottle size.
+class ProductOption {
+  const ProductOption({
+    required this.key,
+    required this.label,
+    this.desc = '',
+    this.price = Price.zero,
+  });
+
+  final String key;
+  final String label;
+
+  /// Optional detail beside the label, e.g. "500ml".
+  final String desc;
+
+  /// Optional surcharge. Stated in the order message and never added to the
+  /// price shown on screen.
+  final Price price;
+
+  /// The whole phrase for a message line: "Cold drink (500ml)".
+  String get named => desc.isEmpty ? label : '$label ($desc)';
 }
 
 /// One product.
@@ -76,6 +161,7 @@ class Product {
     required this.description,
     required this.details,
     required this.specs,
+    required this.options,
     required this.imageUrl,
     required this.tint,
     required this.vector,
@@ -89,6 +175,10 @@ class Product {
   final String description;
   final String details;
   final Map<String, String> specs;
+
+  /// Selectable add-ons, in the catalog's order. Empty for most products.
+  final List<ProductOption> options;
+
   final String? imageUrl;
   final String? tint;
 
@@ -107,18 +197,36 @@ class Product {
   ///
   /// [storeName] is interpolated the way the site does ("Hi Alex Store! ...").
   ///
+  /// [selectedOptions] is the set of chosen add-on keys. Every option is stated
+  /// either way — "Cold drink (500ml): yes" or "... : no" — so an unticked box
+  /// is an explicit answer rather than a silence, matching
+  /// `common.js:productLink`. A chosen option that carries a surcharge also
+  /// states it, "(+ Rs 100)", on that line rather than in the price above: the
+  /// price shown on the page never changes with a choice.
+  ///
   /// Note what is NOT here: the long [details] copy. The site deliberately
   /// keeps this to a few lines — "only ask about the detail if there is any,
   /// and keep it to one extra line" — and an order message long enough to
   /// scroll is one the shopkeeper will not read.
-  String whatsappMessage(String storeName) {
+  String whatsappMessage(String storeName, {Set<String> selectedOptions = const {}}) {
     final lines = <String>[
       "Hi $storeName! I'd like to order:",
       '',
       '*$name*',
-      '$category - ${price.formatted}',
+      // The site uses an em dash here (`common.js:productLink`); the app mirrors
+      // it character for character so the shop reads one format.
+      '$category — ${price.formatted}',
     ];
     if (description.isNotEmpty) lines.add(description);
+    for (final option in options) {
+      if (option.label.isEmpty) continue;
+      final chosen = selectedOptions.contains(option.key);
+      if (chosen && option.price.paisa > 0) {
+        lines.add('${option.named}: yes (+ ${option.price.formatted})');
+      } else {
+        lines.add('${option.named}: ${chosen ? 'yes' : 'no'}');
+      }
+    }
     lines
       ..add('')
       ..add('Is it available?');
@@ -137,6 +245,7 @@ class Product {
       description: (json['description'] as String?) ?? '',
       details: (json['details'] as String?) ?? '',
       specs: _asSpecs(json['specs']),
+      options: _asOptions(json['options']),
       imageUrl: _asStringOrNull(json['image_url']),
       tint: _asStringOrNull(json['tint']),
       vector: _asVector(json['vector']),
@@ -179,6 +288,28 @@ class Product {
       if (label.isEmpty || text.isEmpty) return;
       out[label] = text;
     });
+    return out;
+  }
+
+  /// Selectable add-ons from `catalog.json`, in order.
+  ///
+  /// Anything without both a key and a label is dropped: a half-filled row
+  /// would render a checkbox that cannot be matched back to an answer.
+  static List<ProductOption> _asOptions(Object? raw) {
+    if (raw is! List) return const [];
+    final out = <ProductOption>[];
+    for (final item in raw) {
+      if (item is! Map) continue;
+      final key = (item['key'] as String?)?.trim() ?? '';
+      final label = (item['label'] as String?)?.trim() ?? '';
+      if (key.isEmpty || label.isEmpty) continue;
+      out.add(ProductOption(
+        key: key,
+        label: label,
+        desc: (item['desc'] as String?)?.trim() ?? '',
+        price: Price.paisa(_asInt(item['price_cents'])),
+      ));
+    }
     return out;
   }
 }

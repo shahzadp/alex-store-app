@@ -17,11 +17,14 @@ import 'shop_screen.dart';
 
 /// The shop's front door.
 ///
-/// Structure follows the site's index page: the delivery threshold, then the
-/// hero, then the product grid, then collections. Products come first because
-/// the grid is what a shopper came for; collections are the browse-after.
-/// Nothing that a shopper has to dismiss first, and no cart, because there is
-/// no cart (MEMORY.md §3).
+/// Structure follows the site's index page: the hero, then the product grid,
+/// then collections. Products come first because the grid is what a shopper
+/// came for; collections are the browse-after. Nothing that a shopper has to
+/// dismiss first, and no cart, because there is no cart (MEMORY.md §3).
+///
+/// The old free-delivery strip used to sit above all of this. It is gone: the
+/// same offer is now a claimable voucher shown once (see `voucher_prompt.dart`)
+/// and a quiet line in the footer, which is where the site keeps it too.
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
@@ -38,12 +41,7 @@ class HomeScreen extends StatelessWidget {
         return Scaffold(
           body: SafeArea(
             bottom: false,
-            child: Column(
-              children: [
-                AnnouncementBar(state: state),
-                Expanded(child: _Body(state: state)),
-              ],
-            ),
+            child: _Body(state: state),
           ),
         );
       },
@@ -124,44 +122,6 @@ class _Body extends StatelessWidget {
   static void _openProduct(BuildContext context, Product product) {
     Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => ProductScreen(slug: product.slug)),
-    );
-  }
-}
-
-/// The delivery-threshold strip.
-///
-/// States only the threshold. On the site a call-to-action here was removed as
-/// redundant — WhatsApp is already one tap from every product, the drawer and
-/// the footer (MEMORY.md §3) — so this bar carries information and nothing else.
-///
-/// Hidden entirely when the store has no threshold configured: an empty
-/// announcement bar is worse than none.
-class AnnouncementBar extends StatelessWidget {
-  const AnnouncementBar({super.key, required this.state});
-
-  final CatalogState state;
-
-  @override
-  Widget build(BuildContext context) {
-    final catalog = state.catalog;
-    final text = catalog == null
-        ? null
-        : announcementFor(
-            freeDeliveryOverPaisa: catalog.store.freeDeliveryOver.paisa,
-            format: (paisa) => Price.paisa(paisa).formatted,
-          );
-    if (text == null) return const SizedBox.shrink();
-
-    return Container(
-      width: double.infinity,
-      color: StoreTheme.surfaceDark,
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-      child: Text(
-        text,
-        textAlign: TextAlign.center,
-        style: const TextStyle(
-            color: StoreTheme.inkOnDark, fontSize: 12.5, letterSpacing: 0.2),
-      ),
     );
   }
 }

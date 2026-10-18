@@ -51,6 +51,7 @@ Product aProduct() => Product(
       description: 'Glazed stoneware, holds heat well and goes in the dishwasher.',
       details: 'details',
       specs: const {},
+      options: const [],
       imageUrl: null,
       tint: '#D9CCEA',
       vector: Float32List(384),
