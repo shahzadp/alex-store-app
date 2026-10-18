@@ -1,8 +1,8 @@
-/// Catalog domain model.
+﻿/// Catalog domain model.
 ///
 /// Mirrors the shape of the site's `catalog.json`, which is the only file the
-/// app can read — it cannot run sql.js and never parses `catalog.sql`.
-/// See CATALOG-GUIDE.md §8.
+/// app can read â€” it cannot run sql.js and never parses `catalog.sql`.
+/// See CATALOG-GUIDE.md Â§8.
 library;
 
 import 'dart:convert';
@@ -52,13 +52,15 @@ class Store {
     required this.whatsapp,
     required this.freeDeliveryOver,
     required this.deliveryPercent,
+    required this.deliveryPercentLow,
+    required this.deliveryThresholdPaisa,
     required this.voucher,
     required this.currency,
   });
 
   final String name;
 
-  /// Digits only, no `+`, no separators — the site's `settings.whatsapp`.
+  /// Digits only, no `+`, no separators â€” the site's `settings.whatsapp`.
   final String whatsapp;
 
   /// Free-delivery threshold.
@@ -73,6 +75,13 @@ class Store {
   /// figure is shown anywhere.
   final int deliveryPercent;
 
+  /// Delivery percentage applied to prices below [deliveryThresholdPaisa].
+  final int deliveryPercentLow;
+
+  /// Price (in paisa) below which [deliveryPercentLow] applies instead of
+  /// [deliveryPercent]. 1000 Rs by default.
+  final int deliveryThresholdPaisa;
+
   /// The claimable free-delivery offer. [Voucher.isEmpty] when unset.
   final Voucher voucher;
 
@@ -82,14 +91,20 @@ class Store {
   final String currency;
 
   /// What delivery would add to [price], or null when no percentage is set.
-  Price? deliveryIncluded(Price price) =>
-      deliveryPercent > 0 ? price.plusPercent(deliveryPercent) : null;
+  Price? deliveryIncluded(Price price) {
+    final pct = price.paisa < deliveryThresholdPaisa
+        ? deliveryPercentLow
+        : deliveryPercent;
+    return pct > 0 ? price.plusPercent(pct) : null;
+  }
 
   static const Store empty = Store(
     name: 'Alex Store',
     whatsapp: '',
     freeDeliveryOver: Price.zero,
     deliveryPercent: 0,
+    deliveryPercentLow: 0,
+    deliveryThresholdPaisa: 100000,
     voucher: Voucher.none,
     currency: 'PKR',
   );
@@ -103,6 +118,10 @@ class Store {
       whatsapp: wa.replaceAll(RegExp(r'[^0-9]'), ''),
       freeDeliveryOver: Price.paisa(_asInt(json['free_delivery_over_paisa'])),
       deliveryPercent: _asInt(json['delivery_percent']),
+      deliveryPercentLow: _asInt(json['delivery_percent_low']),
+      deliveryThresholdPaisa: _asInt(json['delivery_threshold_paisa']) == 0
+          ? 100000
+          : _asInt(json['delivery_threshold_paisa']),
       voucher: Voucher.fromJson(
         (json['voucher'] as Map?)?.cast<String, dynamic>() ?? const {},
       ),
@@ -115,7 +134,7 @@ class Store {
 ///
 /// A preference, not a price: [price] is an optional surcharge stated in the
 /// WhatsApp order message so the shop knows what to pack and what it costs, but
-/// the price shown on the page never changes with the choice — the same rule the
+/// the price shown on the page never changes with the choice â€” the same rule the
 /// site follows. [key] is the stable identifier (derived from the label by the
 /// site), [label] is what the shopper reads, and [desc] is optional detail, such
 /// as the bottle size.
@@ -144,12 +163,12 @@ class ProductOption {
 /// One product.
 ///
 /// Note the three separate text fields, which are the single most common
-/// source of confusion in this store (CATALOG-GUIDE.md §5):
+/// source of confusion in this store (CATALOG-GUIDE.md Â§5):
 ///
-///  * [description] — one factual line. On cards, in search, in the WhatsApp
+///  * [description] â€” one factual line. On cards, in search, in the WhatsApp
 ///    message. This is the text that gets embedded.
-///  * [details] — the long write-up on the product page. Not searchable.
-///  * [specs] — structured label/value data for the specifications box.
+///  * [details] â€” the long write-up on the product page. Not searchable.
+///  * [specs] â€” structured label/value data for the specifications box.
 ///    Not searchable.
 class Product {
   const Product({
@@ -183,7 +202,7 @@ class Product {
   final String? tint;
 
   /// The precomputed ternlight embedding, decoded from base64. Null when the
-  /// catalog is not fully indexed — see [Catalog.isSearchable].
+  /// catalog is not fully indexed â€” see [Catalog.isSearchable].
   final Float32List? vector;
 
   /// The WhatsApp message, pre-written exactly as the site builds it in
@@ -198,15 +217,15 @@ class Product {
   /// [storeName] is interpolated the way the site does ("Hi Alex Store! ...").
   ///
   /// [selectedOptions] is the set of chosen add-on keys. Every option is stated
-  /// either way — "Cold drink (500ml): yes" or "... : no" — so an unticked box
+  /// either way â€” "Cold drink (500ml): yes" or "... : no" â€” so an unticked box
   /// is an explicit answer rather than a silence, matching
   /// `common.js:productLink`. A chosen option that carries a surcharge also
   /// states it, "(+ Rs 100)", on that line rather than in the price above: the
   /// price shown on the page never changes with a choice.
   ///
   /// Note what is NOT here: the long [details] copy. The site deliberately
-  /// keeps this to a few lines — "only ask about the detail if there is any,
-  /// and keep it to one extra line" — and an order message long enough to
+  /// keeps this to a few lines â€” "only ask about the detail if there is any,
+  /// and keep it to one extra line" â€” and an order message long enough to
   /// scroll is one the shopkeeper will not read.
   String whatsappMessage(String storeName, {Set<String> selectedOptions = const {}}) {
     final lines = <String>[
@@ -215,7 +234,7 @@ class Product {
       '*$name*',
       // The site uses an em dash here (`common.js:productLink`); the app mirrors
       // it character for character so the shop reads one format.
-      '$category — ${price.formatted}',
+      '$category â€” ${price.formatted}',
     ];
     if (description.isNotEmpty) lines.add(description);
     for (final option in options) {
@@ -254,9 +273,9 @@ class Product {
 
   /// Base64 float32 blob from `catalog.json`.
   ///
-  /// Returns null — never throws, never pads — for anything that is not a
+  /// Returns null â€” never throws, never pads â€” for anything that is not a
   /// well-formed [Product.embeddingDims]-element vector. A wrong-width vector
-  /// would make the dot product meaningless, and MEMORY.md §4 is largely a
+  /// would make the dot product meaningless, and MEMORY.md Â§4 is largely a
   /// catalogue of ways a plausible-looking wrong answer gets shipped.
   static Float32List? _asVector(Object? raw) {
     if (raw is! String || raw.isEmpty) return null;
@@ -314,8 +333,8 @@ class Product {
   }
 }
 
-/// An editorial collection. Deliberately not a product group — CATALOG-GUIDE
-/// §6: linking collections to products is a schema change, not a styling one.
+/// An editorial collection. Deliberately not a product group â€” CATALOG-GUIDE
+/// Â§6: linking collections to products is a schema change, not a styling one.
 class ProductCollection {
   const ProductCollection({
     required this.slug,
@@ -363,9 +382,9 @@ class Catalog {
   /// True when every product carries a vector, i.e. the site's
   /// `indexIsComplete()`.
   ///
-  /// This is the guard that matters. Per CATALOG-GUIDE.md §1, an incomplete
+  /// This is the guard that matters. Per CATALOG-GUIDE.md Â§1, an incomplete
   /// index makes **every** search return nothing, silently, across the whole
-  /// app — the site looks fine and nobody is told. So the app refuses to
+  /// app â€” the site looks fine and nobody is told. So the app refuses to
   /// search rather than showing an empty result the user reads as "we don't
   /// stock that".
   bool get isSearchable =>
@@ -417,7 +436,7 @@ String? _asStringOrNull(Object? raw) {
 
 /// Coerce a JSON value to an integer.
 ///
-/// The catalog is generated, so these should always be integers already — but
+/// The catalog is generated, so these should always be integers already â€” but
 /// `catalog.json` is a file on a web server that anyone with push access can
 /// change, and `jsonDecode` happily returns a double for `780000.0`. Rounding
 /// rather than throwing keeps one malformed price from making the whole
