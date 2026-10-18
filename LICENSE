@@ -1,0 +1,32 @@
+Copyright (c) 2026 shahzadp (https://github.com/shahzadp)
+All rights reserved.
+
+This repository and everything in it - the application, its source code, the
+name "Alex Store", the icon and logo artwork (assets/icon/ and
+android/app/src/main/res/mipmap-*/), the launch video
+(assets/splash/alex-store.mp4), and every built or published APK - is the
+property of the copyright holder. No permission is granted to copy, modify,
+merge, publish, distribute, sublicense, sell, or otherwise use any of it, in
+source or in compiled form.
+
+In particular, nothing here grants any right to the "Alex Store" name, to the
+Android package name io.github.shahzadp.alex_store, to the application icon, or
+to anything confusingly similar to them; and nothing here permits distributing
+this application, or a modified version of it, in a way that presents it as
+official or endorsed by, or coming from, this project.
+
+The only official build is the one published as a GitHub release of this
+repository, signed with the certificate whose SHA-256 fingerprint is recorded in
+docs/assetlinks.json. Android refuses to install anything signed with a
+different key as an update to an installed copy.
+
+Third-party components are licensed by their own authors and are NOT covered by
+the terms above. See THIRD_PARTY_NOTICES.md.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.

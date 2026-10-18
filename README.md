@@ -7,6 +7,35 @@ Reads the same `catalog.json` the website serves, and does semantic search
 
 ---
 
+## The official download, and how to check it
+
+The only official copies of this app are published from this repository: the
+storefront at <https://shahzadp.github.io/store>, and the release asset its
+button points at,
+`https://github.com/shahzadp/alex-store-app/releases/latest/download/alex-store.apk`.
+
+Anything else offering "Alex Store" - another site, a mirror, an APK forwarded in
+a chat - is not from here. That warning is worth stating because the usual signals
+prove nothing: the name, the icon and the shop's WhatsApp number are all public,
+so a convincing fake is made of exactly the same parts as the real thing.
+
+Two things do prove authenticity, and both are cheap:
+
+- The APK is signed with the key whose SHA-256 fingerprint is recorded in
+  `docs/assetlinks.json`:
+
+  ```
+  DA:5B:48:50:1D:CE:D4:5D:35:C7:5B:EC:8D:F0:D8:45:CF:8E:2C:19:4B:FC:D8:A6:DD:ED:AB:9B:D1:02:1A:C2
+  ```
+
+  `apksigner verify --print-certs <file>.apk` prints it. A different key means it
+  is not this app - and Android refuses to install anything signed with a
+  different key *as an update* to a copy already installed, so an impostor cannot
+  reach an existing install at all.
+- `node scripts/verify-release-apk.mjs` checks every release against that
+  fingerprint and against `docs/assetlinks.json`, and fails on anything else. The
+  published APK is the one that passed.
+
 ## Why the Rust part exists
 
 The website runs [ternlight](https://github.com/soycaporal/ternlight) — a
@@ -341,12 +370,28 @@ rather than proceeding, and checks `search_model` from the catalog against
   and one asked by meaning. The wider claim stands unchanged: one handset is not
   a test matrix.
 
+## Licence
+
+**This repository is not open source.** `LICENSE` is all-rights-reserved: no
+permission is granted to reuse the source, the name, the icon or the launch
+video, and nothing here permits redistributing the app - or a modified version of
+it - as though it were official.
+
+That is a deliberate choice for this particular app. Its whole purchase path is a
+WhatsApp message, and the icon and the shop's number are what a convincing fake
+would need; both are necessarily public, so branding cannot be the thing that
+proves authenticity. The signature described under "The official download" can
+be, which is why it is checked on every release rather than asserted here.
+
+Third-party components keep their own permissive licences, listed in
+`THIRD_PARTY_NOTICES.md`. None of them licenses anything of this project's.
+
 ## Third party
 
 - [ternlight](https://github.com/soycaporal/ternlight) — MIT. Engine in
   `rust/src/engine/`, weights from
   [`wenshutang/ternlight`](https://huggingface.co/wenshutang/ternlight) (MIT).
-  See `THIRD_PARTY_TERNLIGHT_LICENSE`.
+  See `THIRD_PARTY_NOTICES.md`.
 - `dart:ffi` is in the Dart SDK, so the bridge itself carries no licence. It was
   built with `flutter_rust_bridge` (MIT) first, which was abandoned — see
   MEMORY.md §6 for why.
