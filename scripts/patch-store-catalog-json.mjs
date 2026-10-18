@@ -35,8 +35,21 @@ let src = readFileSync(TARGET, 'utf8');
 const before = src;
 let changed = 0;
 
-function patch(anchor, replacement, label) {
-  if (src.includes(replacement) && src.includes(anchor) === false) {
+/**
+ * `marker` is an ASCII string that this patch puts in the file, and it - not
+ * `replacement` - decides whether the patch is already there.
+ *
+ * WHY NOT JUST TEST `replacement`
+ * The Store's db.js has mojibake where this script's source has em dashes: its
+ * copies of those comments were written before the encoding was sorted out.
+ * So `src.includes(replacement)` is false on a file that is already patched,
+ * and the old test quietly fell through and inserted a SECOND `vectorFor()`.
+ * That happened, twice, before it was noticed. Any non-ASCII byte anywhere in a
+ * replacement makes this test a no-op, so the markers below are ASCII on
+ * purpose.
+ */
+function patch(anchor, replacement, label, marker = replacement) {
+  if (src.includes(marker)) {
     console.log(`  = ${label} (already applied)`);
     return;
   }
@@ -76,6 +89,7 @@ patch(
    * It is the same string as SEARCH_MODEL and the \`model\` column, so all three
    * can be cross-checked.`,
   'toJson() doc comment',
+  'product_vectors ARE included, as base64 on each product',
 );
 
 // ── 2. Vector lookup, built once per export ─────────────────────────────────
@@ -111,6 +125,7 @@ patch(
 
     const products = all('SELECT * FROM products ORDER BY sort_order ASC, id ASC').map((p) => ({`,
   'vectorFor() helper',
+  'function vectorFor(slug) {',
 );
 
 // ── 3. Attach the vector to each product ────────────────────────────────────
@@ -128,6 +143,7 @@ patch(
 
     const collections = all('SELECT * FROM collections ORDER BY sort_order ASC, id ASC').map((c) => ({`,
   'product.vector field',
+  'vector: vectorFor(p.slug),',
 );
 
 // ── 4. Name the model at the top level ──────────────────────────────────────
@@ -141,6 +157,7 @@ patch(
         search_model: SEARCH_MODEL,
       },`,
   'search_model field',
+  'search_model: SEARCH_MODEL,',
 );
 
 if (src === before) {

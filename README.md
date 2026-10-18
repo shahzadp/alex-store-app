@@ -299,6 +299,24 @@ byte-identical to what the admin panel's *Download catalog.json* produces.
 Reimplementing the export here would break the guarantee in CATALOG-GUIDE.md §8
 that the two catalog files cannot disagree.
 
+`catalog.json` also carries the shop's refund policy, appended to the end of every
+product's `details` by the same patched `db.js`
+(`scripts/patch-store-refund-policy.mjs`). It is one sentence — "Once an order has
+been dispatched, a cancellation fee applies." — because the rest of the policy
+belongs on the About page, not in small print under a description. It is carried
+there because this app renders exactly three per-product text fields and `details`
+is the only one that is neither embedded for search nor pasted into the WhatsApp
+order message, so it is the only field that can put a policy in front of someone
+who already has the app installed. `description` was out twice over: appending to
+it would change the vector of every product and put a policy in every order
+message. `specs` is a label/value table. No vector is affected, nothing needs
+re-indexing, and no Dart file changed: the sentence arrives with the catalog.
+Cost: about 0.7 KB across nine products (25.8 KB to 26.5 KB).
+
+The website shows the same words as small text under the full description, from
+`db.js`'s `REFUND_POLICY` constant, and strips the appended copy out of `details`
+first so a shopper on the website reads the sentence once.
+
 ## Rules this app inherits from the store
 
 These are not preferences; breaking them breaks the shop.

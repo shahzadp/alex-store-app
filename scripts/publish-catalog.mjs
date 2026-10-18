@@ -180,6 +180,11 @@ const changedByField = (field) =>
 const renamed = changedByField('name').map((s) => afterBySlug.get(s).name);
 const repriced = changedByField('price_cents');
 const reworded = changedByField('description');
+// `details` is not embedded, so a change here is invisible to search: worth
+// reporting separately rather than as "a vector changed", which is what the
+// refund-policy note appended by db.js's toJson() would otherwise be reported
+// as. It changes every product at once, and it changes no vector.
+const relonged = changedByField('details');
 
 heading('What changed');
 console.log(`    products ${beforeJson.products.length} -> ${afterJson.products.length}`);
@@ -188,8 +193,9 @@ for (const s of removed) console.log(`      - ${s}`);
 for (const n of renamed) console.log(`      ~ ${n}`);
 for (const s of repriced) console.log(`      $ ${s} (price)`);
 for (const s of reworded) console.log(`      ~ ${s} (text changed, so its vector changed)`);
+for (const s of relonged) console.log(`      ~ ${s} (full description changed, no vector change)`);
 if (!added.length && !removed.length && !renamed.length &&
-    !repriced.length && !reworded.length) {
+    !repriced.length && !reworded.length && !relonged.length) {
   console.log('      (same products — a vector changed)');
 }
 // A removed product is worth a second look, because the app ships no product

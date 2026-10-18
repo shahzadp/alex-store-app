@@ -46,6 +46,13 @@ self-contained.
   stops reading it as this repository's licence. The signing certificate
   fingerprint in `docs/assetlinks.json` is what README offers as proof of an
   official download. See §3, "GitHub badge read MIT License".
+- **The refund policy ships inside the catalog, not inside the app.** Every
+  product's `details` in `catalog.json` ends with one line that no product row
+  contains — "Once an order has been dispatched, a cancellation fee applies." —
+  appended by the site's own `toJson()`. It therefore reaches phones that already
+  have the app with no new APK, no re-index and no change to any Dart file: the
+  app draws it in the "Full description" box, because that is the only field it
+  could use. The rest of the policy is on the About page. See §3.
 - **What is proven and what is not:** analyze clean, 98 Dart tests, 9 Rust parity
   tests, and 30 checks against the built APK
   (`scripts/verify-release-apk.mjs`). None of that is a phone, though. One handset
@@ -550,6 +557,23 @@ the original file back when nothing real changed. Vectors regenerate
 byte-identically — verified by regenerating and diffing all 8 — which is what
 makes this a valid comparison to make.
 
+### A patch script's "already applied?" test failed silently and inserted its patch twice
+
+`scripts/patch-store-catalog-json.mjs` decided whether its work was already done
+with `src.includes(replacement)`. That only holds while the replacement text is
+byte-identical to what is in the file — and it is not: the Store's `db.js` has
+mojibake where this script's source has em dashes, because those comments were
+written before the encoding was sorted out. So on an already-patched `db.js` the
+test read false, the anchor was still there, and the script inserted a **second**
+`function vectorFor(slug)`. Sloppy mode hoists the last declaration, so nothing
+threw: the export kept working, over a `db.js` with a duplicate nobody asked for.
+
+Each patch now carries an explicit ASCII `marker`, and the marker is what gets
+tested, never the replacement text. Verified by running each patch script twice:
+both print "already applied" for every patch, the Store's `db.js` is untouched,
+and `vectorFor` is defined exactly once. `scripts/patch-store-refund-policy.mjs`
+was written with ASCII markers from the start for the same reason.
+
 ### A failed refresh used to blank the storefront instead of keeping the catalog
 
 `CatalogService.load` did this when the network failed and there was no cached
@@ -978,6 +1002,49 @@ script that verifies every release against it, and says plainly that a page
 wearing the right name and icon proves nothing. The certificate is the one thing a
 copier cannot reproduce, and Android's refusal to install a differently-signed
 update over an installed copy is what makes that concrete rather than rhetorical.
+
+### The refund policy reaches installed apps through `details`, and nothing else could carry it
+
+The shop needed a refund policy — including a cancellation fee — visible on every
+product, present in the app already on people's phones, and updatable without
+shipping a new APK. `catalog.json` is fetched on every launch, so the requirement
+really meant: put it in `catalog.json`, in a field the *installed* build already
+draws. Only one field qualified. The app renders three per-product text fields:
+
+| Field | Renders where | Searchable | In the order message |
+| --- | --- | --- | --- |
+| `description` | under the price | yes — it *is* the embedded text | yes |
+| `details` | the "Full description" box | no | no |
+| `specs` | the "Specifications" table | no | no |
+
+`description` was out twice over: appending a policy to it would change the vector
+for every product (a re-index for nothing) and paste a policy into every WhatsApp
+order message. `specs` is a label/value table, and a sentence in a spec value
+would read as a data-entry mistake. So `details` — the one field that is neither
+embedded nor sent to the shop.
+
+The wording is one sentence and stays one sentence: "Once an order has been
+dispatched, a cancellation fee applies." The first attempt was a short paragraph
+of three sentences, and on a product page it read as a wall of small print. The
+refund window, who pays the return and how refunds are paid live on the About
+page, which is where a shopper goes when they actually care.
+
+Two consequences worth remembering:
+
+- **This app's `details` is not only the shop's copy.** It ends with that line,
+  which no product row contains, appended by the site's own `toJson()`
+  (`scripts/patch-store-refund-policy.mjs`) — the export path the admin's Download
+  button and `regen-catalog-json.mjs` both drive. Appending on export rather than
+  storing it in the `products` table is what keeps a product added later from
+  missing it, and keeps the admin's editor clean. The website strips the appended
+  copy before rendering and prints the sentence itself, under the description; the
+  app shows it inline, because the app has no other place to put it. A future
+  build that wants it styled separately does not have to parse it out of a
+  description: the same words are in `catalog.json`'s `store.refund_policy`, which
+  nothing reads yet.
+- **No vector changes, so nothing needs re-indexing.** `check-vectors-agree.mjs`
+  still passes, and the app's own released APK is unaffected: the words simply
+  arrive with the next catalog fetch.
 
 ---
 
