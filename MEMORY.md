@@ -753,6 +753,15 @@ gh release upload v1.0 /tmp/alex-store.apk --clobber
 gh release delete-asset v1.0 app-release.apk --yes   # undo the mistake
 ```
 
+**Creating one has the same trap, from a different direction.**
+`gh release create <path>#<name>` looks like it renames the upload, but the
+`#<name>` is the asset's display *label*; the file keeps its own basename. So
+`gh release create v1.2.3 .../app-release.apk#alex-store.apk` published an asset
+named `app-release.apk`, and the site's URL 404'd while the release page looked
+correct. Copy to the name the site expects first, exactly as above.
+`scripts/build-apk.mjs` prints that sequence when a build finishes, for this
+reason.
+
 Then expect a stale **edge cache** to keep serving the old bytes for a minute or
 two. Right after the swap, `repos/.../releases/tags/v1.0` and `gh release
 download` both reported the new asset while a plain GET of

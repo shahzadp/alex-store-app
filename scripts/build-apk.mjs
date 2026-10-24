@@ -236,9 +236,24 @@ Done. Output:
   build/app/outputs/flutter-apk/app-${MODE}.apk
 
 MEMORY.md §3: the APK is published as a GitHub *release* asset, never
-committed to the repo. Use the \`latest\` tag so the URL never changes:
+committed to the repo. The asset must be named alex-store.apk, because
+that is the name the Store's apkUrl ends in:
 
-  gh release create v<version> build/app/outputs/flutter-apk/app-${MODE}.apk
-  # then, in the Store repo:
-  #   build.config.json -> apkUrl, node build.mjs
+  .../releases/latest/download/alex-store.apk
+
+\`gh release create <path>#<name>\` does NOT rename the asset. The #<name>
+becomes its display *label*; the file keeps its own basename. Uploading
+app-${MODE}.apk straight from the build output therefore publishes a
+release whose download URL 404s while the release page looks correct.
+Stage it under the right name first:
+
+  cp build/app/outputs/flutter-apk/app-${MODE}.apk /tmp/alex-store.apk
+  gh release create v<version> /tmp/alex-store.apk --title "Alex Store v<version>" --notes-file <notes>
+
+Bump \`version\` in pubspec.yaml before that. An equal versionCode is the
+same version to the installer, so the release never reaches anyone still
+on the previous build.
+
+The Store needs no rebuild: apkUrl uses the \`latest\` alias, so it follows
+the newest release on its own. Rebuild only if apkUrl itself moves.
 `);
