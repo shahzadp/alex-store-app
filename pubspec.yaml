@@ -17,7 +17,7 @@ publish_to: "none"
 # concerned, whatever the bytes are. Anything published from here on gets its
 # own versionCode, and the number below is bumped whenever the artifact changes
 # rather than only when the feature set does.
-version: 1.2.2+6
+version: 1.2.3+7
 
 environment:
   sdk: ">=3.5.0 <4.0.0"
