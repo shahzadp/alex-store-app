@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Every request this app makes is HTTPS: one catalog fetch from
+  shahzadp.github.io, and everything else (the search engine, the model, the
+  launch video) is inside the APK. There is no local dev server and no second
+  origin, so cleartext is denied globally rather than allowed per domain.
+
+  Trust anchors are the system store only. That is already the platform default
+  for an app targeting API 24+, and writing it out is what makes it reviewable:
+  a later `src="user"` or `<debug-overrides>` entry cannot slip in without this
+  file changing, and `scripts/verify-release-apk.mjs` reads the packaged config
+  back out of the APK. The catalog is the product data shown to shoppers, so it
+  should not be MITM-able through a proxy certificate.
+
+  minSdk is 24. Cleartext is off by default from targetSdk 28 up, but the
+  targetSdk is a build-file value; `cleartextTrafficPermitted="false"` here is
+  what keeps it off if that value ever moves.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system"/>
+        </trust-anchors>
+    </base-config>
+</network-security-config>

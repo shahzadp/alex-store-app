@@ -170,9 +170,47 @@ its own copies, and checks the built artifact: the signing certificate against
 every symbol in `native_engine.dart` is both exported by the `.so` and still
 present as a string in the Dart AOT snapshot; that the model is embedded
 byte-for-byte and matches its own checksum; that every packaged ABI has a real
-Flutter engine behind it; and that `GeneratedPluginRegistrant` — which Flutter
+Flutter engine behind it; that `GeneratedPluginRegistrant` — which Flutter
 looks up with `Class.forName`, so a rename would silently disable every plugin —
-kept its name.
+kept its name; and that the packaged manifest still disables backups and
+cleartext, trusts only the system CA store, and exports only the components it
+has to.
+
+### Network, backups and exported components
+
+The manifest sets three things explicitly, because each one fails silently when
+it regresses:
+
+| Setting | Value | What it prevents |
+| --- | --- | --- |
+| `android:allowBackup` | `false` (with `fullBackupContent="false"`) | The OS backup agent uploading the cached catalog and voucher state, and `adb backup` pulling them out |
+| `android:usesCleartextTraffic` | `false` | Plain HTTP if `targetSdk` ever moves; the network config repeats the rule |
+| `android:networkSecurityConfig` | `res/xml/network_security_config.xml` | Cleartext on any domain, and trust anchors beyond the system store |
+
+The app has exactly one network origin — `https://shahzadp.github.io/store` — and
+everything else (the search engine, the model, the launch video) is inside the
+APK. There is no local dev server, so the config has no exception to carve out.
+The catalog is the product data shown to shoppers, which is why the trust
+anchors are the system store only: a proxy certificate cannot rewrite prices or
+stock.
+
+`allowBackup="false"` is a deliberate trade. Moving to a new phone will not carry
+the cached catalog or the "voucher already claimed" flag; the catalog refetches
+on first launch, and the voucher is a welcome offer rather than state worth
+backing up.
+
+Only two components are exported, and both are required:
+
+- `MainActivity` — the launcher icon and the `https://shahzadp.github.io/store`
+  app-link filter.
+- `androidx.profileinstaller.ProfileInstallReceiver` — merged in by Flutter, and
+  guarded by `android.permission.DUMP`, which is signature/privileged.
+
+Everything else is `exported="false"`: `WebViewActivity` from `url_launcher`,
+`androidx.startup.InitializationProvider`, and any future plugin component.
+`scripts/verify-release-apk.mjs` reads all of this back out of the packaged
+manifest and fails on a third exported component, a missing permission on the
+profile receiver, or a `debuggable` release build.
 
 ### `model.bin` is not in this repository
 

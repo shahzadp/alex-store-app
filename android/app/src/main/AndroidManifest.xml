@@ -8,10 +8,31 @@
          here, in main, because the app fetches catalog.json on every launch. -->
     <uses-permission android:name="android.permission.INTERNET"/>
 
+    <!-- Hardening, all of it enforced by the platform rather than by code:
+           * allowBackup=false        the catalog cache and voucher state stay on
+                                      this phone; nothing is uploaded by the OS
+                                      backup agent, and `adb backup` cannot pull
+                                      them out either.
+           * usesCleartextTraffic=false  the platform already defaults to false at
+                                      targetSdk 28+, but the targetSdk lives in a
+                                      build file; writing it here means a future
+                                      change to that value cannot silently turn
+                                      plain HTTP back on.
+           * networkSecurityConfig    trust anchors are the system store only, so
+                                      a user-installed proxy CA cannot intercept
+                                      the catalog fetch. The app talks to exactly
+                                      one origin over HTTPS, so there is no
+                                      exception to carve out.
+         `scripts/verify-release-apk.mjs` asserts all three survive into the
+         packaged manifest, because every one of them fails silently. -->
     <application
         android:label="Alex Store"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:allowBackup="false"
+        android:fullBackupContent="false"
+        android:usesCleartextTraffic="false"
+        android:networkSecurityConfig="@xml/network_security_config">
         <activity
             android:name=".MainActivity"
             android:exported="true"

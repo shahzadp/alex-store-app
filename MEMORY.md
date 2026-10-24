@@ -282,6 +282,34 @@ comment explaining why it cannot move back. **When adding any permission, put
 it in `main`, not in the debug manifest** — `flutter run` will work fine
 without it, which is what makes this survive right up to the APK.
 
+### The manifest defaults were the policy: backups on, cleartext off by accident
+
+Nothing in the manifest said what the app was allowed to do outside its own
+process, so the platform defaults were the policy. `allowBackup` defaults to
+true, which left the cached catalog and the voucher flag available to the OS
+backup agent and to `adb backup`. Cleartext happened to be off because
+`targetSdk` is 36 — the default flips at 28 — so the protection was a property
+of a build file rather than a decision anyone had made.
+
+`android/app/src/main/AndroidManifest.xml` now states it: `allowBackup="false"`,
+`fullBackupContent="false"`, `usesCleartextTraffic="false"`, and a network
+security config that denies cleartext and trusts only the system CA store. The
+app talks to exactly one HTTPS origin, so there is no per-domain exception to
+carve out.
+
+The exported-component list was never written down either. It is now enforced:
+only `MainActivity` (launcher and app links) and
+`androidx.profileinstaller.ProfileInstallReceiver` (behind
+`android.permission.DUMP`) may be exported. Everything else is
+`exported="false"`, including `WebViewActivity` from `url_launcher` and
+`androidx.startup.InitializationProvider`.
+
+None of this is visible in a manual test — the app browses identically whether
+backups are on or a proxy CA is trusted — which is why
+`scripts/verify-release-apk.mjs` reads the packaged manifest and the packaged
+network config back out of the APK, and fails on a third exported component or
+a missing `DUMP` permission.
+
 ### Mojibake repair: whole-file round trips destroy correct text
 
 Writing a UTF-8 file through `Get-Content -raw` (no `-Encoding`) and back with

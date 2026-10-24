@@ -180,6 +180,7 @@ function main() {
     checkSplash(work);
     checkSystemSplash();
     checkPackageVisibility();
+    checkManifestHardening();
     checkPluginRegistration(work);
   } finally {
     fs.rmSync(work, { recursive: true, force: true });
@@ -668,6 +669,175 @@ function checkPackageVisibility() {
     'whatsapp is queryable (the installed app)',
     whatsapp,
     whatsapp ? 'VIEW + scheme whatsapp' : 'absent: canLaunchUrl cannot see WhatsApp on Android 11+',
+  );
+}
+
+/**
+ * The settings that stop the OS doing something on the app's behalf.
+ *
+ * All three are silent when they regress: the app keeps browsing, and the only
+ * difference is that the backup agent may upload the catalog cache, `adb
+ * backup` may pull it out, or the trust store may drift from system-only.
+ * None of that is visible in a manual test, which is why they are read back out
+ * of the packaged manifest rather than trusted to the source file.
+ *
+ * Exported components get the same treatment. Every one of them is reachable by
+ * any other app on the device, so the list has to be deliberate rather than
+ * "whatever a plugin merged in this month".
+ */
+function checkManifestHardening() {
+  heading('Manifest hardening');
+
+  const aapt2 = buildToolsFile(process.platform === 'win32' ? 'aapt2.exe' : 'aapt2');
+  if (!aapt2) {
+    info('manifest hardening', 'aapt2 unavailable, so this was not checked');
+    return;
+  }
+
+  const tree = run(aapt2, ['dump', 'xmltree', APK_PATH, '--file', 'AndroidManifest.xml']).stdout;
+  if (!tree) {
+    record('the packaged manifest is readable', false, 'aapt2 produced no manifest dump');
+    return;
+  }
+
+  const lines = tree.split(/\r?\n/);
+  const appStart = lines.findIndex((l) => /^\s*E: application\b/.test(l));
+  if (appStart < 0) {
+    record('the packaged manifest has <application>', false, 'no <application> element');
+    return;
+  }
+  const appIndent = lines[appStart].match(/^(\s*)/)[1].length;
+
+  // Attributes of <application> itself, and its direct component children. The
+  // dump nests intent-filters and meta-data inside a component, so attributes
+  // are collected at the component's own depth only — a nested action's `name`
+  // is not the component's name.
+  const appAttrs = [];
+  const components = [];
+  let component = null;
+
+  for (let i = appStart + 1; i < lines.length; i++) {
+    const line = lines[i];
+    const element = line.match(/^(\s*)E: (\w+)/);
+    if (element && element[1].length <= appIndent) break;
+
+    if (element) {
+      component = null;
+      if (element[1].length === appIndent + 4) {
+        component = { tag: element[2], attrs: [] };
+        components.push(component);
+      }
+      continue;
+    }
+
+    const attr = line.match(/^(\s*)A: /);
+    if (!attr) continue;
+    if (attr[1].length === appIndent + 2) appAttrs.push(line);
+    else if (component && attr[1].length === appIndent + 6) component.attrs.push(line);
+  }
+
+  const application = appAttrs.join('\n');
+  const attrValue = (block, name) => {
+    const m = block.match(new RegExp(`:${name}\\([^)]*\\)=([^\\s]+)`));
+    return m ? m[1] : null;
+  };
+  // String attributes keep their quotes in aapt2's dump; booleans do not.
+  const quotedValue = (block, name) => {
+    const m = block.match(new RegExp(`:${name}\\([^)]*\\)="([^"]*)"`));
+    return m ? m[1] : null;
+  };
+
+  const allowBackup = attrValue(application, 'allowBackup');
+  record(
+    'android:allowBackup is false',
+    allowBackup === 'false',
+    allowBackup === 'false'
+      ? ''
+      : 'the OS backup agent may upload the catalog cache; set android:allowBackup="false"',
+  );
+
+  const fullBackup = attrValue(application, 'fullBackupContent');
+  record(
+    'android:fullBackupContent is false',
+    fullBackup === 'false',
+    fullBackup === 'false' ? '' : 'pre-Android-12 backup rules still apply',
+  );
+
+  const cleartext = attrValue(application, 'usesCleartextTraffic');
+  record(
+    'android:usesCleartextTraffic is false',
+    cleartext === 'false',
+    cleartext === 'false' ? '' : 'plain HTTP would be permitted where the config does not say otherwise',
+  );
+
+  // The config is the control the platform actually reads; `usesCleartextTraffic`
+  // is ignored once it is present. Both are checked because they can drift.
+  const resources = run(aapt2, ['dump', 'resources', APK_PATH]).stdout;
+  const configPath = resources.match(/xml\/network_security_config[^\n]*\n\s*\([^)]*\)\s*\(file\)\s*(\S+)/)?.[1];
+  if (!configPath) {
+    record('the network security config is packaged', false, 'xml/network_security_config is not in the resource table');
+  } else {
+    const config = run(aapt2, ['dump', 'xmltree', APK_PATH, '--file', configPath]).stdout;
+    record(
+      'cleartext is denied by the network security config',
+      /cleartextTrafficPermitted=false/.test(config),
+      /cleartextTrafficPermitted=false/.test(config)
+        ? configPath
+        : 'base-config does not set cleartextTrafficPermitted="false"',
+    );
+    record(
+      'the config trusts only the system CA store',
+      /src="system"/.test(config) && !/src="user"/.test(config),
+      /src="user"/.test(config) ? 'a user-installed CA can intercept the catalog fetch' : '',
+    );
+  }
+
+  const debuggable = attrValue(application, 'debuggable');
+  record(
+    'the release manifest is not debuggable',
+    debuggable !== 'true',
+    debuggable === 'true' ? 'android:debuggable="true" in a release artifact' : '',
+  );
+
+  // Every exported component is an entry point another app can start. These two
+  // are the only ones with a reason, and the reason is written down here so a
+  // future addition has to argue with it rather than just update a count.
+  const EXPORTED_ALLOWED = new Map([
+    ['io.github.shahzadp.alex_store.MainActivity', 'the launcher icon and the https app-link filter'],
+    ['androidx.profileinstaller.ProfileInstallReceiver', 'guarded by android.permission.DUMP (signature|privileged)'],
+  ]);
+
+  const exported = components.filter((c) => attrValue(c.attrs.join('\n'), 'exported') === 'true');
+  const unexpected = exported.filter((c) => !EXPORTED_ALLOWED.has(quotedValue(c.attrs.join('\n'), 'name')));
+  record(
+    'no component is exported that the app does not need',
+    unexpected.length === 0,
+    unexpected.length
+      ? unexpected.map((c) => `${c.tag} ${quotedValue(c.attrs.join('\n'), 'name')}`).join(', ') +
+        ' — add it to EXPORTED_ALLOWED with a reason, or make it unexported'
+      : exported.length
+        ? exported.map((c) => `${c.tag} ${quotedValue(c.attrs.join('\n'), 'name')}`).join(', ')
+        : 'nothing is exported',
+  );
+
+  for (const c of exported) {
+    const name = quotedValue(c.attrs.join('\n'), 'name');
+    if (name !== 'androidx.profileinstaller.ProfileInstallReceiver') continue;
+    const permission = quotedValue(c.attrs.join('\n'), 'permission');
+    record(
+      'ProfileInstallReceiver stays behind android.permission.DUMP',
+      permission === 'android.permission.DUMP',
+      permission === 'android.permission.DUMP' ? '' : `permission is ${permission ?? '(none)'}`,
+    );
+  }
+
+  const main = components.find(
+    (c) => quotedValue(c.attrs.join('\n'), 'name') === 'io.github.shahzadp.alex_store.MainActivity',
+  );
+  record(
+    'MainActivity is exported (launcher + app links)',
+    !!main && attrValue(main.attrs.join('\n'), 'exported') === 'true',
+    main ? '' : 'MainActivity is missing from the manifest',
   );
 }
 
