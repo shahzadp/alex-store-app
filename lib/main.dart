@@ -5,13 +5,15 @@ import 'package:flutter/material.dart';
 import 'src/catalog_scope.dart';
 import 'src/models/catalog.dart';
 import 'src/models/price.dart';
-import 'src/screens/home_screen.dart';
+import 'src/screens/main_shell.dart';
 import 'src/screens/product_screen.dart';
 import 'src/screens/splash_screen.dart';
 import 'src/services/catalog_service.dart';
 import 'src/services/deep_link_service.dart';
+import 'src/services/local_stores.dart';
 import 'src/services/voucher_store.dart';
 import 'src/services/whatsapp.dart';
+import 'src/store_scope.dart';
 import 'src/theme.dart';
 import 'src/widgets/voucher_prompt.dart';
 
@@ -29,6 +31,8 @@ class AlexStoreApp extends StatefulWidget {
 
 class _AlexStoreAppState extends State<AlexStoreApp> {
   late final CatalogService _service;
+  late final SavedStore _saved;
+  late final RecentStore _recent;
   final _navigatorKey = GlobalKey<NavigatorState>();
   late final DeepLinkService _deepLinks;
 
@@ -39,11 +43,16 @@ class _AlexStoreAppState extends State<AlexStoreApp> {
   void initState() {
     super.initState();
     _service = CatalogService();
-    // Fire and forget. The first frame renders immediately and HomeScreen
-    // shows a spinner off `service.stream` while this resolves — blocking on
+    // Fire and forget. The first frame renders immediately and the tab shell
+    // shows skeletons off `service.stream` while this resolves — blocking on
     // the network would mean a white screen on a slow connection, which is the
     // single worst first impression a store can give.
     unawaited(_service.load());
+
+    _saved = SavedStore();
+    _recent = RecentStore();
+    unawaited(_saved.load());
+    unawaited(_recent.load());
 
     _deepLinks = DeepLinkService();
     _deepLinks.onProduct = _openProductFromLink;
@@ -54,6 +63,8 @@ class _AlexStoreAppState extends State<AlexStoreApp> {
   void dispose() {
     _deepLinks.dispose();
     _service.dispose();
+    _saved.dispose();
+    _recent.dispose();
     super.dispose();
   }
 
@@ -84,39 +95,43 @@ class _AlexStoreAppState extends State<AlexStoreApp> {
 
   @override
   Widget build(BuildContext context) {
-    return CatalogScope(
-      service: _service,
-      child: MaterialApp(
-        title: 'Alex Store',
-        debugShowCheckedModeBanner: false,
-        theme: StoreTheme.light(),
-        navigatorKey: _navigatorKey,
-        home: const HomeScreen(),
-        // The launch video sits ON TOP of the app, not in place of it.
-        //
-        // `home` above is built on the very first frame, so the catalog fetch
-        // and the whole home layout happen while the video plays. By the time
-        // the video has faded out the shop is already painted underneath and
-        // the reveal is instant. Any deep link that arrived during the splash
-        // is likewise already pushed and waiting.
-        //
-        // Using MaterialApp's `builder` rather than a wrapper around it is what
-        // gives the splash the app's Theme and MediaQuery, so it has the real
-        // screen size and insets to lay the video out against.
-        builder: (context, child) => Stack(
-          fit: StackFit.expand,
-          children: [
-            if (child != null) child,
-            // The claimable voucher, shown once over the shop. It is gated on
-            // the splash so it does not fight the launch video for the first
-            // impression; `enabled` flips true the moment the video is gone.
-            //
-            // It sits BELOW the splash in paint order so the video still covers
-            // it during launch, and at a stable index so its seen-marker read is
-            // not thrown away when the splash leaves the tree.
-            _VoucherGate(enabled: _splashDone),
-            if (!_splashDone) SplashScreen(onFinished: _onSplashFinished),
-          ],
+    return StoreScope(
+      saved: _saved,
+      recent: _recent,
+      child: CatalogScope(
+        service: _service,
+        child: MaterialApp(
+          title: 'Alex Store',
+          debugShowCheckedModeBanner: false,
+          theme: StoreTheme.light(),
+          navigatorKey: _navigatorKey,
+          home: const MainShell(),
+          // The launch video sits ON TOP of the app, not in place of it.
+          //
+          // `home` above is built on the very first frame, so the catalog fetch
+          // and the whole home layout happen while the video plays. By the time
+          // the video has faded out the shop is already painted underneath and
+          // the reveal is instant. Any deep link that arrived during the splash
+          // is likewise already pushed and waiting.
+          //
+          // Using MaterialApp's `builder` rather than a wrapper around it is what
+          // gives the splash the app's Theme and MediaQuery, so it has the real
+          // screen size and insets to lay the video out against.
+          builder: (context, child) => Stack(
+            fit: StackFit.expand,
+            children: [
+              if (child != null) child,
+              // The claimable voucher, shown once over the shop. It is gated on
+              // the splash so it does not fight the launch video for the first
+              // impression; `enabled` flips true the moment the video is gone.
+              //
+              // It sits BELOW the splash in paint order so the video still covers
+              // it during launch, and at a stable index so its seen-marker read is
+              // not thrown away when the splash leaves the tree.
+              _VoucherGate(enabled: _splashDone),
+              if (!_splashDone) SplashScreen(onFinished: _onSplashFinished),
+            ],
+          ),
         ),
       ),
     );

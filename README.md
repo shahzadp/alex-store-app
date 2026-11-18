@@ -60,7 +60,7 @@ unmodified** from upstream.
 
 ```
 lib/
-  main.dart                     app entry, CatalogScope
+  main.dart                     app entry, scopes, launch overlay wiring
   src/
     models/
       catalog.dart              Catalog, Store, Product, Collection
@@ -72,12 +72,17 @@ lib/
       whatsapp.dart             wa.me links, plus the two-toned button label
       launcher.dart             external URL opening
       deep_link_service.dart    storefront links -> the matching product
-    screens/                    home, shop, product, search, splash
+      local_stores.dart         saved + recently viewed, on-device JSON lists
+      voucher_store.dart        the once-per-install voucher marker
+    screens/                    home, shop, search, saved, product, main shell, splash
     widgets/
       product_card.dart        the card, with the grid that sizes it
       product_image.dart       image + the placeholder every product uses
+      product_row.dart         the horizontal strip for recently viewed / related
+      save_toggle.dart         the heart that saves a product
       skeleton.dart            loading placeholders shaped like the content
       states.dart              empty, error and "nothing matched" states
+    store_scope.dart           saved + recent stores, one inherited scope
     theme.dart                  the site's palette, type scale, card metrics
 
 assets/

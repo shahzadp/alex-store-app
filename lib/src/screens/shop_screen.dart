@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../catalog_scope.dart';
@@ -8,6 +8,7 @@ import '../theme.dart';
 import '../widgets/product_card.dart';
 import '../widgets/skeleton.dart';
 import '../widgets/states.dart';
+import 'main_shell.dart';
 import 'product_screen.dart';
 import 'search_screen.dart';
 
@@ -23,9 +24,19 @@ class ShopScreen extends StatefulWidget {
   State<ShopScreen> createState() => _ShopScreenState();
 }
 
+enum _Sort { featured, priceAsc, priceDesc, name }
+
+const _sortLabels = <_Sort, String>{
+  _Sort.featured: 'Featured',
+  _Sort.priceAsc: 'Price: Low to High',
+  _Sort.priceDesc: 'Price: High to Low',
+  _Sort.name: 'Name A–Z',
+};
+
 class _ShopScreenState extends State<ShopScreen> {
   String? _category;
   bool _inStockOnly = false;
+  _Sort _sort = _Sort.featured;
 
   @override
   Widget build(BuildContext context) {
@@ -45,14 +56,7 @@ class _ShopScreenState extends State<ShopScreen> {
             appBar: AppBar(
               title: const Text('Shop'),
               actions: [
-                IconButton(
-                  tooltip: 'Search',
-                  icon: const Icon(Icons.search),
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const SearchScreen()),
-                  ),
-                ),
-                const SizedBox(width: StoreTheme.spaceSm),
+                _SearchAction(),
               ],
             ),
             body: const SkeletonProductGrid(count: 4),
@@ -65,14 +69,7 @@ class _ShopScreenState extends State<ShopScreen> {
           appBar: AppBar(
             title: const Text('Shop'),
             actions: [
-              IconButton(
-                tooltip: 'Search',
-                icon: const Icon(Icons.search),
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const SearchScreen()),
-                ),
-              ),
-              const SizedBox(width: StoreTheme.spaceSm),
+              _SearchAction(),
             ],
           ),
           body: Column(
@@ -87,35 +84,50 @@ class _ShopScreenState extends State<ShopScreen> {
               // How many there are, and how many are shown. A filtered grid
               // with no count reads as a broken grid, not a filtered one.
               Padding(
-                padding: const EdgeInsets.fromLTRB(
-                    StoreTheme.screenEdge, StoreTheme.spaceMd, StoreTheme.screenEdge, 0),
-                child: Row(
+                padding: const EdgeInsets.fromLTRB(StoreTheme.screenEdge,
+                    StoreTheme.spaceMd, StoreTheme.screenEdge, 0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      '${products.length} '
-                      '${products.length == 1 ? 'product' : 'products'}',
-                      style: Theme.of(context).textTheme.bodySmall,
+                    Row(
+                      children: [
+                        Text(
+                          '${products.length} '
+                          '${products.length == 1 ? 'product' : 'products'}',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                        const Spacer(),
+                        if (_category != null || _inStockOnly) ...[
+                          TextButton(
+                            onPressed: () => setState(() {
+                              _category = null;
+                              _inStockOnly = false;
+                            }),
+                            child: const Text('Clear filters'),
+                          ),
+                        ],
+                        _SortButton(
+                          value: _sort,
+                          onChanged: (s) => setState(() => _sort = s),
+                        ),
+                      ],
                     ),
-                    if (_category != null || _inStockOnly) ...[
-                      const Spacer(),
-                      TextButton(
-                        onPressed: () => setState(() {
-                          _category = null;
-                          _inStockOnly = false;
-                        }),
-                        child: const Text('Clear filters'),
+                    if (_sort != _Sort.featured)
+                      Text(
+                        'Sorted by ${_sortLabels[_sort]}',
+                        style: Theme.of(context).textTheme.labelSmall,
                       ),
-                    ],
                   ],
                 ),
               ),
               const Divider(height: 1),
               Expanded(
                 child: products.isEmpty
-                    ? _Empty(onReset: () => setState(() {
-                          _category = null;
-                          _inStockOnly = false;
-                        }))
+                    ? _Empty(
+                        onReset: () => setState(() {
+                              _category = null;
+                              _inStockOnly = false;
+                            }))
                     : SingleChildScrollView(
                         child: ProductGrid(
                           products: products,
@@ -141,7 +153,15 @@ class _ShopScreenState extends State<ShopScreen> {
     if (_inStockOnly) {
       products = products.where((p) => p.inStock).toList();
     }
-    return products;
+    return switch (_sort) {
+      _Sort.featured => products,
+      _Sort.priceAsc => [...products]
+        ..sort((a, b) => a.price.compareTo(b.price)),
+      _Sort.priceDesc => [...products]
+        ..sort((a, b) => b.price.compareTo(a.price)),
+      _Sort.name => [...products]
+        ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase())),
+    };
   }
 }
 
@@ -204,7 +224,8 @@ class _Filters extends StatelessWidget {
 
 /// A filter chip with a visible selected state and a real check affordance.
 class _Chip extends StatelessWidget {
-  const _Chip({required this.label, required this.selected, required this.onTap});
+  const _Chip(
+      {required this.label, required this.selected, required this.onTap});
 
   final String label;
   final bool selected;
@@ -256,6 +277,64 @@ class _Chip extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// App-bar search action. Inside the shell it switches to the Search tab;
+/// outside it falls back to a pushed route.
+class _SearchAction extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      tooltip: 'Search',
+      icon: const Icon(Icons.search),
+      onPressed: () {
+        if (ShellSwitcher.maybeSwitchTo(context, ShellTab.search)) return;
+        Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const SearchScreen()),
+        );
+      },
+    );
+  }
+}
+
+/// The sort menu. A quiet icon next to the count: the grid order is the
+/// default everywhere else, so this is an affordance, not a control the
+/// shopper must engage with.
+class _SortButton extends StatelessWidget {
+  const _SortButton({required this.value, required this.onChanged});
+
+  final _Sort value;
+  final ValueChanged<_Sort> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return PopupMenuButton<_Sort>(
+      tooltip: 'Sort products',
+      icon: const Icon(Icons.sort_rounded),
+      initialValue: value,
+      onSelected: onChanged,
+      itemBuilder: (context) => [
+        for (final entry in _sortLabels.entries)
+          PopupMenuItem<_Sort>(
+            value: entry.key,
+            // A tick, so the current order is visible and not colour-bound.
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  width: 26,
+                  child: entry.key == value
+                      ? const Icon(Icons.check,
+                          size: 17, color: StoreTheme.accent)
+                      : null,
+                ),
+                Text(entry.value),
+              ],
+            ),
+          ),
+      ],
     );
   }
 }

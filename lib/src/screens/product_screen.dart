@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -7,8 +9,11 @@ import '../models/catalog.dart';
 import '../models/price.dart';
 import '../services/launcher.dart';
 import '../services/whatsapp.dart';
+import '../store_scope.dart';
 import '../theme.dart';
 import '../widgets/product_image.dart';
+import '../widgets/product_row.dart';
+import '../widgets/save_toggle.dart';
 
 /// One product.
 ///
@@ -42,6 +47,23 @@ class _ProductScreenState extends State<ProductScreen> {
   /// the buyer opts in rather than out — matching the site's unticked boxes.
   final Set<String> _selected = <String>{};
 
+  /// Set once the recently-viewed write has been handed off — didChangeDependencies
+  /// runs whenever an ancestor rebuilds.
+  bool _recordedView = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_recordedView) return;
+    _recordedView = true;
+    // Remember the view for the home screen's "Recently viewed" row.
+    // Fire-and-forget: the file write must not hold up the first frame.
+    unawaited(
+      StoreScope.maybeOf(context)?.recent.record(widget.slug) ??
+          Future<void>.value(),
+    );
+  }
+
   void _setOption(String key, bool on) {
     setState(() {
       if (on) {
@@ -69,17 +91,25 @@ class _ProductScreenState extends State<ProductScreen> {
         if (product == null) {
           return Scaffold(
             appBar: AppBar(),
-            body: const Center(child: Text('This product is no longer available.')),
+            body: const Center(
+                child: Text('This product is no longer available.')),
           );
         }
 
         return Scaffold(
           appBar: AppBar(
-            title: Text(product.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+            title: Text(product.name,
+                maxLines: 1, overflow: TextOverflow.ellipsis),
+            actions: [
+              SaveToggle(product: product, variant: SaveToggleVariant.appBar),
+              const SizedBox(width: StoreTheme.spaceSm),
+            ],
           ),
           body: ListView(
             padding: EdgeInsets.fromLTRB(
-                StoreTheme.screenEdge, 4, StoreTheme.screenEdge,
+                StoreTheme.screenEdge,
+                4,
+                StoreTheme.screenEdge,
                 120 + StoreTheme.bottomSafeInset(context)),
             children: [
               ProductImage(
@@ -90,7 +120,8 @@ class _ProductScreenState extends State<ProductScreen> {
                 heroTag: 'product-image-${product.slug}',
               ),
               const SizedBox(height: StoreTheme.spaceLg),
-              Text(product.name, style: Theme.of(context).textTheme.headlineMedium),
+              Text(product.name,
+                  style: Theme.of(context).textTheme.headlineMedium),
               const SizedBox(height: StoreTheme.spaceSm),
               _Category(category: product.category),
               const SizedBox(height: StoreTheme.spaceMd),
@@ -112,7 +143,6 @@ class _ProductScreenState extends State<ProductScreen> {
                 ),
               ],
               const SizedBox(height: StoreTheme.spaceXxl),
-
               if (product.specs.isNotEmpty) ...[
                 _Section(
                   title: 'Specifications',
@@ -120,7 +150,6 @@ class _ProductScreenState extends State<ProductScreen> {
                 ),
                 const SizedBox(height: 18),
               ],
-
               _Section(
                 title: 'Full description',
                 // Grows with its copy rather than scrolling inside a fixed
@@ -128,13 +157,19 @@ class _ProductScreenState extends State<ProductScreen> {
                 // write-up behind an inner scrollbar; the page is the only
                 // thing that scrolls.
                 child: Text(
-                  product.details.isEmpty ? product.description : product.details,
+                  product.details.isEmpty
+                      ? product.description
+                      : product.details,
                   style: Theme.of(context)
                       .textTheme
                       .bodyLarge
                       ?.copyWith(color: StoreTheme.inkBody),
                 ),
               ),
+              if (catalog != null) ...[
+                const SizedBox(height: StoreTheme.spaceXxl),
+                _RelatedProducts(slug: widget.slug, catalog: catalog),
+              ],
             ],
           ),
           bottomNavigationBar:
@@ -191,7 +226,8 @@ class _PriceBlock extends StatelessWidget {
         children: [
           Text(
             'Sold out',
-            style: theme.textTheme.headlineSmall?.copyWith(color: StoreTheme.soldOut),
+            style: theme.textTheme.headlineSmall
+                ?.copyWith(color: StoreTheme.soldOut),
           ),
           const SizedBox(width: StoreTheme.spaceMd),
           Text(
@@ -338,7 +374,8 @@ class _Section extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title.toUpperCase(), style: Theme.of(context).textTheme.labelSmall),
+        Text(title.toUpperCase(),
+            style: Theme.of(context).textTheme.labelSmall),
         const SizedBox(height: StoreTheme.spaceMd),
         Container(
           width: double.infinity,
@@ -509,6 +546,44 @@ class _SoldOutButton extends StatelessWidget {
         'Sold out',
         style: TextStyle(color: StoreTheme.soldOut.withValues(alpha: 1)),
       ),
+    );
+  }
+}
+
+/// "You may also like" — same category first, then whatever else the shop
+/// carries, capped at four. Every card is a real, in-catalog product; nothing
+/// here is invented. Renders nothing when there is nothing to suggest.
+class _RelatedProducts extends StatelessWidget {
+  const _RelatedProducts({required this.slug, required this.catalog});
+
+  final String slug;
+  final Catalog catalog;
+
+  @override
+  Widget build(BuildContext context) {
+    final current = catalog.bySlug(slug);
+    final others = catalog.products.where((p) => p.slug != slug).toList();
+    final sameCategory = current == null
+        ? const <Product>[]
+        : others.where((p) => p.category == current.category).toList();
+    final related =
+        (sameCategory.isNotEmpty ? sameCategory : others).take(4).toList();
+
+    if (related.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('YOU MAY ALSO LIKE',
+            style: Theme.of(context).textTheme.labelSmall),
+        const SizedBox(height: StoreTheme.spaceMd),
+        ProductRow(
+          products: related,
+          onTap: (p) => Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => ProductScreen(slug: p.slug)),
+          ),
+        ),
+      ],
     );
   }
 }

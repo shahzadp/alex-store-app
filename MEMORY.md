@@ -11,8 +11,10 @@ self-contained.
 
 ## 1. Current state
 
-- Flutter app, Android target, five screens: home, shop, product, search, and the
-  launch video that opens the app. (The About screen was removed; see §3.)
+- Flutter app, Android target, tab shell (home, shop, search, saved) plus the
+  product page, and the launch video that opens the app. (The About screen was
+  removed; see §3. The five-screen push-based layout became a bottom-nav tab
+  shell on 2026-11-18; see §7.)
 - **The app opens with a video.** `assets/splash/alex-store.mp4` — the same
   render of the storefront's title animation — plays over the app with its audio,
   and the app is already built underneath it, so the reveal is instant. See §3,
@@ -1121,17 +1123,15 @@ node scripts/verify-release-apk.mjs           # must be 30/30 before publishing
 `flutter` and `cargo` are not on `PATH` in a bare shell here; both `scripts` call
 them by name, so prepend `C:\dev\flutter\bin` and `%USERPROFILE%\.cargo\bin`.
 
-**`flutter config` points at `D:\android-sdk`, a junction onto the real SDK under
-`D:\GitHub-Projects\DoL-by-Alex\devTools\androidsdk`.** Gradle does not use it —
-it reads `sdk.dir` from `android/local.properties`, so a `gradlew` build succeeds
-even when the junction is missing. `flutter build apk` does, so it fails with
-"No Android SDK found" and the error looks like a Flutter problem rather than a
-missing junction. The junction exists because the real path contains spaces,
-which Flutter refuses. Recreate it with no admin rights needed:
-
-```
-mklink /J D:\android-sdk "D:\GitHub-Projects\DoL-by-Alex\devTools\androidsdk"
-```
+**`flutter config` points at `D:\Dev\SDKs\android-sdk`** (since 2026-11-07;
+previously `D:\android-sdk`, a junction that then resolved to the real SDK under
+`devTools\androidsdk`). Gradle does not use it — it reads `sdk.dir` from
+`android/local.properties`, so a `gradlew` build succeeds even when the
+flutter setting is wrong. `flutter build apk` does not, so it fails with
+"No Android SDK found" and the error looks like a Flutter problem rather than
+a misconfigured SDK. The `D:\android-sdk` junction was removed on 2026-11-07;
+everything uses `D:\Dev\SDKs\android-sdk` directly and no consumer should
+reference `D:\android-sdk` anymore.
 
 ### Touching the site
 
@@ -1172,7 +1172,7 @@ six blockers in order, each exposing the next:
 
 | Symptom | Cause | Fix |
 | --- | --- | --- |
-| `link.exe` not found | default toolchain is `msvc`; `D:\VS2022BT` is empty | `cargo +stable-x86_64-pc-windows-gnu` |
+| `link.exe` not found | default toolchain is `msvc`; `D:\Dev\BuildTools\VS2022BT` is empty (or missing) | `cargo +stable-x86_64-pc-windows-gnu` |
 | `dlltool.exe` not found | not on `PATH` | staged a copy at a space-free path |
 | `dlltool: CreateProcess` | its own path contained a space | same fix |
 | `ld: cannot find -lmsvcrt` | my copy of `gcc.exe` shadowed the real one | removed it, keeping only `dlltool` |
@@ -1242,7 +1242,47 @@ Both files are a pair: change one, change the other.
 
 ---
 
-## 7. Where things are
+## 7. The storefront pass: tabs, saved, recently viewed, sort, related (2026-11-18)
+
+A Shopify-style UX pass, done to match the site. Everything is on-device;
+nothing talks to a backend except the prefilled WhatsApp message.
+
+- **Bottom navigation.** `MainShell` — one `Scaffold`, one M3 `NavigationBar`,
+  `IndexedStack` so tabs keep state, and a `PopScope` that routes Android back
+  to Home instead of out of the app. The four tabs are Home/Shop/Search/Saved.
+  Deep links still push the product screen on top, so they work identically.
+  Screens reach the shell through `ShellSwitcher.maybeSwitchTo(context, index)`
+  and fall back to a pushed route outside it, which is also what lets the
+  widget tests pump them straight into a `MaterialApp`.
+- **Saved for later.** `SavedStore` (`saved.v1.json`) and `RecentStore`
+  (`recent.v1.json`) share one `JsonSlugList` base in `local_stores.dart`:
+  write-through, corrupt-file-tolerant, stream for the UI. The heart lives in
+  `SaveToggle` (two variants: the disc on card images, the app-bar action on
+  the product page), so every heart reads one `SavedStore` and rebuilds from
+  the same stream. The Saved tab badge shows the count live. Plain `test()`
+  unit tests exercise the store shape; widget flow tests pump the shell.
+- **Recently viewed** is capped at six, deduped, newest first, recorded in
+  `didChangeDependencies` on the product screen (not `initState`, so ancestor
+  rebuilds do not double-count).
+- **Related products** on the product page prefer the same category, then the
+  rest of the catalog, capped at four.
+- **Sort on the shop tab** (`Featured`, `Price ↑`, `Price ↓`, `Name A–Z`) is a
+  popup menu next to the count; it composes with the category and in-stock
+  filters rather than replacing them.
+- **Test gotcha worth knowing.** Widget tests run in a fake-async zone where
+  real file I/O never completes — even `Directory.systemTemp.createTemp` in a
+  test body hangs the test outright. Temp dirs go in `setUp`, and anything
+  that triggers a store write (taps that call `store.toggle`) needs
+  `tester.runAsync` plus a real `Future.delayed`, not `pumpAndSettle` alone.
+  `pumpAndSettle` with a pending real I/O write just returns before the file
+  exists.
+- **Not verified on a device.** `flutter analyze` clean; `flutter test` 130/130.
+  Nobody has held a handset with this build yet; the saved badge and the
+  bottom bar deserve eyes before the next `v1.x` release.
+
+---
+
+## 8. Where things are
 
 | Concern | File |
 | --- | --- |
@@ -1264,5 +1304,11 @@ Both files are a pair: change one, change the other.
 | Catalog fetch / cache / validate | `lib/src/services/catalog_service.dart` |
 | Search interface | `lib/src/services/search_engine.dart` |
 | Bridge implementation | `lib/src/services/rust_search_engine.dart` |
+| Saved + recently viewed stores | `lib/src/services/local_stores.dart` |
+| StoreScope (saved + recent, one scope) | `lib/src/store_scope.dart` |
+| Heart toggle (card + app bar) | `lib/src/widgets/save_toggle.dart` |
+| Horizontal product strip | `lib/src/widgets/product_row.dart` |
+| Bottom navigation shell | `lib/src/screens/main_shell.dart` |
+| Saved screen | `lib/src/screens/saved_screen.dart` |
 | Card height constants | `lib/src/theme.dart` |
 | Architecture and rationale | `README.md` |

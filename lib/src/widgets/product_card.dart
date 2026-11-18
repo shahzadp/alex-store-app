@@ -24,6 +24,7 @@ import '../catalog_scope.dart';
 import '../models/catalog.dart';
 import '../theme.dart';
 import '../widgets/product_image.dart';
+import 'save_toggle.dart';
 
 class ProductCard extends StatelessWidget {
   const ProductCard({
@@ -42,7 +43,8 @@ class ProductCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: StoreTheme.cardVerticalPadding),
+      padding:
+          const EdgeInsets.symmetric(vertical: StoreTheme.cardVerticalPadding),
       child: Material(
         color: Colors.transparent,
         borderRadius: StoreTheme.rMd,
@@ -63,56 +65,63 @@ class ProductCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-                Stack(
-                  children: [
-                    ProductImage(
-                      imageUrl: product.imageUrl,
-                      tint: product.tint,
-                      label: product.name,
-                      seed: seed,
-                      aspectRatio: StoreTheme.cardImageAspect,
-                      heroTag: 'product-image-${product.slug}',
-                    ),
-                    // Sold-out is a state, not a styling of the price. A card
-                    // that merely greys its text gives no reason why, and one
-                    // that looks identical to an in-stock card is the thing
-                    // that costs a sale: a shopper taps it, reads the product,
-                    // and only then finds they cannot order.
-                    if (!product.inStock) const _SoldOutVeil(),
-                  ],
-                ),
-                const SizedBox(height: StoreTheme.cardGapImage),
-
-                // Reserved, never grown.
-                SizedBox(
-                  height: StoreTheme.nameHeight,
-                  child: Text(
-                    product.name,
-                    maxLines: StoreTheme.nameLines,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.titleSmall,
+              Stack(
+                children: [
+                  ProductImage(
+                    imageUrl: product.imageUrl,
+                    tint: product.tint,
+                    label: product.name,
+                    seed: seed,
+                    aspectRatio: StoreTheme.cardImageAspect,
+                    heroTag: 'product-image-${product.slug}',
                   ),
-                ),
-                const SizedBox(height: StoreTheme.cardGapName),
-
-                SizedBox(
-                  height: StoreTheme.descriptionHeight,
-                  child: Text(
-                    product.description,
-                    maxLines: StoreTheme.descriptionLines,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.bodySmall,
+                  // Sold-out is a state, not a styling of the price. A card
+                  // that merely greys its text gives no reason why, and one
+                  // that looks identical to an in-stock card is the thing
+                  // that costs a sale: a shopper taps it, reads the product,
+                  // and only then finds they cannot order.
+                  if (!product.inStock) const _SoldOutVeil(),
+                  // Save-for-later. Floating top-right of the image, like
+                  // every wishlist affordance a shopper has already met.
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: SaveToggle(product: product),
                   ),
+                ],
+              ),
+              const SizedBox(height: StoreTheme.cardGapImage),
+
+              // Reserved, never grown.
+              SizedBox(
+                height: StoreTheme.nameHeight,
+                child: Text(
+                  product.name,
+                  maxLines: StoreTheme.nameLines,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.titleSmall,
                 ),
-                const SizedBox(height: StoreTheme.cardGapDescription),
-                SizedBox(
-                  height: StoreTheme.priceRowHeight,
-                  child: _PriceRow(product: product),
+              ),
+              const SizedBox(height: StoreTheme.cardGapName),
+
+              SizedBox(
+                height: StoreTheme.descriptionHeight,
+                child: Text(
+                  product.description,
+                  maxLines: StoreTheme.descriptionLines,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall,
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(height: StoreTheme.cardGapDescription),
+              SizedBox(
+                height: StoreTheme.priceRowHeight,
+                child: _PriceRow(product: product),
+              ),
+            ],
           ),
         ),
+      ),
     );
   }
 }
@@ -296,8 +305,7 @@ class ProductGrid extends StatelessWidget {
         final columns = columnsFor(constraints.maxWidth);
         final spacing = StoreTheme.cardGap;
         final available = constraints.maxWidth - padding.horizontal;
-        final cellWidth =
-            (available - spacing * (columns - 1)) / columns;
+        final cellWidth = (available - spacing * (columns - 1)) / columns;
         final cellHeight = cardHeightFor(cellWidth);
 
         return GridView.builder(

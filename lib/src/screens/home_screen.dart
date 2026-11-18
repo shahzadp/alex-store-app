@@ -6,11 +6,14 @@ import '../models/catalog.dart';
 import '../models/price.dart';
 import '../services/launcher.dart';
 import '../services/whatsapp.dart';
+import '../store_scope.dart';
 import '../theme.dart';
 import '../widgets/product_card.dart';
 import '../widgets/product_image.dart';
+import '../widgets/product_row.dart';
 import '../widgets/skeleton.dart';
 import '../widgets/states.dart';
+import 'main_shell.dart';
 import 'product_screen.dart';
 import 'search_screen.dart';
 import 'shop_screen.dart';
@@ -89,9 +92,7 @@ class _Body extends StatelessWidget {
                       style: Theme.of(context).textTheme.headlineSmall),
                   const Spacer(),
                   TextButton(
-                    onPressed: () => Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const ShopScreen()),
-                    ),
+                    onPressed: () => _openShop(context),
                     child: const Text('All products'),
                   ),
                 ],
@@ -103,6 +104,9 @@ class _Body extends StatelessWidget {
               products: catalog.products,
               onTap: (p) => _openProduct(context, p),
             ),
+          ),
+          SliverToBoxAdapter(
+            child: _RecentlyViewed(catalog: catalog),
           ),
           if (catalog.collections.isNotEmpty)
             SliverToBoxAdapter(
@@ -116,6 +120,15 @@ class _Body extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  /// The shell switches to the Shop tab when it is present (it always is in
+  /// the app); stand-alone tests and pushes fall back to a route.
+  static void _openShop(BuildContext context) {
+    if (ShellSwitcher.maybeSwitchTo(context, ShellTab.shop)) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const ShopScreen()),
     );
   }
 
@@ -155,9 +168,14 @@ class _Hero extends StatelessWidget {
             children: [
               Expanded(
                 child: FilledButton.icon(
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const SearchScreen()),
-                  ),
+                  onPressed: () {
+                    if (!ShellSwitcher.maybeSwitchTo(
+                        context, ShellTab.search)) {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const SearchScreen()),
+                      );
+                    }
+                  },
                   icon: const Icon(Icons.search, size: 18),
                   label: const Text('Search'),
                 ),
@@ -165,9 +183,13 @@ class _Hero extends StatelessWidget {
               const SizedBox(width: 10),
               Expanded(
                 child: OutlinedButton.icon(
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const ShopScreen()),
-                  ),
+                  onPressed: () {
+                    if (!ShellSwitcher.maybeSwitchTo(context, ShellTab.shop)) {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const ShopScreen()),
+                      );
+                    }
+                  },
                   icon: const Icon(Icons.grid_view, size: 17),
                   label: const Text('Browse'),
                 ),
@@ -295,6 +317,57 @@ class _Footer extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// "Recently viewed" — the strip of products this device opened, newest
+/// first. Resolved against the catalog (a since-deleted product just drops
+/// out of the row). Renders nothing — not even a heading — when empty.
+class _RecentlyViewed extends StatelessWidget {
+  const _RecentlyViewed({required this.catalog});
+
+  final Catalog catalog;
+
+  @override
+  Widget build(BuildContext context) {
+    final recent = StoreScope.maybeOf(context)?.recent;
+    if (recent == null) return const SizedBox.shrink();
+
+    return StreamBuilder<List<String>>(
+      stream: recent.stream,
+      initialData: recent.state,
+      builder: (context, snapshot) {
+        final slugs = snapshot.data ?? const <String>[];
+        final bySlug = {for (final p in catalog.products) p.slug: p};
+        final products = [
+          for (final slug in slugs)
+            if (bySlug[slug] != null) bySlug[slug]!,
+        ];
+
+        if (products.isEmpty) return const SizedBox.shrink();
+
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(20, 28, 20, 0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'RECENTLY VIEWED',
+                style: Theme.of(context).textTheme.labelSmall,
+              ),
+              const SizedBox(height: StoreTheme.spaceMd),
+              ProductRow(
+                products: products,
+                onTap: (p) => Navigator.of(context).push(
+                  MaterialPageRoute(
+                      builder: (_) => ProductScreen(slug: p.slug)),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

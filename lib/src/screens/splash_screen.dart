@@ -6,8 +6,8 @@ import 'package:video_player/video_player.dart';
 /// The shop's opening video, played once as the app starts.
 ///
 /// This is the app's splash screen. It replaces the blank Android launch window
-/// with the composition that the storefront already uses â€” the mark, the name,
-/// the underline â€” together with its audio.
+/// with the composition that the storefront already uses — the mark, the name,
+/// the underline — together with its audio.
 ///
 /// # It is an overlay, not a route
 ///
@@ -20,8 +20,8 @@ import 'package:video_player/video_player.dart';
 ///
 /// # The fade matches the composition's own
 ///
-/// `AlexStore.tsx` fades the whole composition out over its last 10 frames â€”
-/// 333 ms at 30 fps â€” ending on black. [fadeOut] is the same 333 ms, so once
+/// `AlexStore.tsx` fades the whole composition out over its last 10 frames —
+/// 333 ms at 30 fps — ending on black. [fadeOut] is the same 333 ms, so once
 /// playback ends the overlay dissolves over exactly that long and then removes
 /// itself. The hand-off reads as one continuous fade rather than the video
 /// stopping and the shop appearing.
@@ -65,7 +65,7 @@ class _SplashScreenState extends State<SplashScreen>
   /// `AlexStore.tsx` paints a radial gradient of `#f5f3ff -> #fdf2f8 ->
   /// #ecfeff` and this is the same three stops. Painting it behind the texture
   /// covers the gap between Flutter's first frame and the decoder's first frame
-  /// â€” a few hundred milliseconds on a cold start â€” so the launch is a single
+  /// — a few hundred milliseconds on a cold start — so the launch is a single
   /// uninterrupted surface instead of a flash of something else.
   ///
   /// Linear rather than radial: over that gap the difference is invisible, and
