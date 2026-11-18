@@ -58,7 +58,7 @@ self-contained.
   app draws it in the "Full description" box, because that is the only field it
   could use. The rest of the policy is on the About page. See §3.
 - **What is proven and what is not:** analyze clean, 98 Dart tests, 9 Rust parity
-  tests, and 30 checks against the built APK
+  tests, and 37 checks against the built APK
   (`scripts/verify-release-apk.mjs`). None of that is a phone, though. One handset
   has run the app and confirmed what the artifact checks could not: the launch
   video with its audio, the corrected system splash, and — on the R8-obfuscated
@@ -1119,7 +1119,7 @@ node scripts/extract-site-vectors.mjs        # refresh the fixture first
 cd .. && node scripts/check-vectors-agree.mjs # catalog.json == catalog.sql
 
 node scripts/build-apk.mjs
-node scripts/verify-release-apk.mjs           # must be 30/30 before publishing
+node scripts/verify-release-apk.mjs           # must be 37/37 before publishing
 ```
 
 `build-apk.mjs` builds it through cargo. For the host build scripts (proc-macro2,
