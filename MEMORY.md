@@ -1120,6 +1120,24 @@ node scripts/build-apk.mjs
 node scripts/verify-release-apk.mjs           # must be 30/30 before publishing
 ```
 
+`build-apk.mjs` builds it through cargo. For the host build scripts (proc-macro2,
+libc and friends, which are Windows binaries) it invokes
+`x86_64-w64-mingw32-gcc`. On 2026-11-18 the one on PATH is WinLibs under
+`C:\Users\Sikander Pc\AppData\Local\Microsoft\WinGet\Packages\...`, whose
+spec files embed that spaced path — `collect2` then hands `ld` split `-L`
+arguments, and the host build dies with `C:/Users/Sikander: file not
+recognized`. Neither the 8.3 short path nor an 8.3 junction helps; gcc
+canonicalizes both back to the spaced path. The space-free MinGW already lives
+at `D:\dev\BuildTools\mingw64` and works, so the release build was made with:
+
+```bash
+set CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER=D:\dev\BuildTools\mingw64\bin\x86_64-w64-mingw32-gcc.exe
+```
+
+Without it, `node scripts/build-apk.mjs` fails at the host step with an error
+that points at the linker, not at the path. The Android target linker is the
+NDK clang from `rust/.cargo/config.toml` and needed no such override.
+
 `flutter` and `cargo` are not on `PATH` in a bare shell here; both `scripts` call
 them by name, so prepend `C:\dev\flutter\bin` and `%USERPROFILE%\.cargo\bin`.
 
