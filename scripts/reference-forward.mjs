@@ -22,7 +22,7 @@ import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-const MODEL = 'D:/GitHub Projects/alex-store-app/rust/src/assets/model.bin';
+const MODEL = 'D:/GitHub-Projects/alex-store-app/rust/src/assets/model.bin';
 const buf = readFileSync(MODEL);
 
 // ── header (training/pack/format.py::_HEADER_STRUCT) ───────────────────────
@@ -292,7 +292,7 @@ await wasm.default({ module_or_path: readFileSync(join(dirname(enginePath), 'ter
 console.log(`header: d_model=${D} n_layers=${L} n_heads=${NH} ffn=${FF} out=${OUT} vocab=${V} emb=${header.embFmt}`);
 console.log(`layout total ${lay.total}, body ${body.length}\n`);
 
-const catalog = JSON.parse(readFileSync('D:/GitHub Projects/Store/catalog.json', 'utf8'));
+const catalog = JSON.parse(readFileSync('D:/GitHub-Projects/Store/catalog.json', 'utf8'));
 const dot = (a, b) => { let s = 0; for (let i = 0; i < a.length; i++) s += a[i] * b[i]; return s; };
 
 console.log('product          cos(JS, WASM)   maxdiff    dims>0.01');

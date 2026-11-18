@@ -6,7 +6,7 @@
 #
 #  1. **The Android SDK path must not contain spaces.** Flutter refuses one,
 #     and the NDK's toolchain breaks on them. The SDK lives at
-#     `D:\GitHub Projects\DoL-by-Alex\devTools\androidsdk`, so
+#     `D:\GitHub-Projects\DoL-by-Alex\devTools\androidsdk`, so
 #     `D:\android-sdk` is a directory junction onto it — `mklink /J`, zero
 #     copy, and every path below is space-free.
 #

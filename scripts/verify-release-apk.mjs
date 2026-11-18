@@ -90,7 +90,7 @@ function sdkRoot() {
   if (fs.existsSync(local)) {
     for (const line of fs.readFileSync(local, 'utf8').split(/\r?\n/)) {
       const m = line.match(/^\s*sdk\.dir\s*=\s*(.+?)\s*$/);
-      // Java properties escape the separator: `sdk.dir=D:\\android-sdk`.
+      // Java properties escape the separator: `sdk.dir=D:\\Dev\\SDKs\\android-sdk`.
       if (m) return m[1].replace(/\\\\/g, '\\');
     }
   }
