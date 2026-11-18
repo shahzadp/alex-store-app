@@ -82,11 +82,11 @@ class StoreTheme {
       // below replaces the styles anyway, so the only thing it buys is a
       // false sense that colours are handled. They are set explicitly instead.
       textTheme: base.textTheme.copyWith(
-        displaySmall: TextStyle(fontSize: 30, fontWeight: FontWeight.w600, height: 1.15, letterSpacing: -0.4, color: ink),
-        headlineMedium: TextStyle(fontSize: 24, fontWeight: FontWeight.w500, height: 1.2, letterSpacing: -0.3, color: ink),
-        headlineSmall: TextStyle(fontSize: 19, fontWeight: FontWeight.w500, height: 1.25, letterSpacing: -0.2, color: ink),
-        titleMedium: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, height: 1.3, color: ink),
-        titleSmall: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, height: 1.35, color: ink),
+        displaySmall: TextStyle(fontSize: 30, fontWeight: FontWeight.w600, height: 1.15, letterSpacing: -0.4, color: ink, fontFamily: 'Georgia'),
+        headlineMedium: TextStyle(fontSize: 24, fontWeight: FontWeight.w500, height: 1.2, letterSpacing: -0.3, color: ink, fontFamily: 'Georgia'),
+        headlineSmall: TextStyle(fontSize: 19, fontWeight: FontWeight.w500, height: 1.25, letterSpacing: -0.2, color: ink, fontFamily: 'Georgia'),
+        titleMedium: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, height: 1.3, color: ink, fontFamily: 'Georgia'),
+        titleSmall: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, height: 1.35, color: ink, fontFamily: 'Georgia'),
         bodyLarge: TextStyle(fontSize: 15, height: 1.5, color: ink),
         bodyMedium: TextStyle(fontSize: 14, height: 1.5, color: inkBody),
         bodySmall: TextStyle(fontSize: 12.5, height: 1.45, color: inkMuted),

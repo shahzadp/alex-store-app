@@ -1350,6 +1350,20 @@ write-up stays as history. The practical consequences to remember are smaller:
 - **Minor updates no longer bump the version number (owner's instruction,
   2026-11-18).** `version: 1.4.0+10` is the step; don't increment for tweaks
   or small changes. Bump only when cutting a release that will be published.
+- **Hero tag collisions (2026-11-18).** The grid, the recently-viewed strip
+  and the related row all emitted `product-image-<slug>`, so a back-navigation
+  flight landed on an arbitrary duplicate and the image "disappeared to random
+  spots". Cards now take a `heroTagSuffix`; rows pass a per-row unique tag.
+  Grid↔product keeps the bare tag and flies; rows don't.
+- **Blandness (2026-11-18).** Georgia serif on display/headline/title styles
+  (the site's own display face; Android ships it), plus a panel-wrapped,
+  icon-headed Recently viewed with a lead-in line instead of an 11px grey
+  caps label.
+- **First-launch images (2026-11-18).** `_primeImageHost` warms the image
+  host's path (DNS/TCP/TLS) while the catalog downloads. The disk cache and
+  prewarm were already in place; the first-ever launch can only get so much
+  faster, and this is the limit of client-side work without changing the
+  catalog.
 
 ---
 

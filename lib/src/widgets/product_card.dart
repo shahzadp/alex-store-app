@@ -32,6 +32,7 @@ class ProductCard extends StatelessWidget {
     required this.product,
     required this.onTap,
     this.seed = 0,
+    this.heroTagSuffix = '',
   });
 
   final Product product;
@@ -39,6 +40,11 @@ class ProductCard extends StatelessWidget {
 
   /// Varies the placeholder tint for products that carry none.
   final int seed;
+
+  /// Keeps the image's Hero tag unique per occurrence. The product page and
+  /// the main grid both fly with the bare tag; strips and rows use a suffix
+  /// so the return flight never lands on an arbitrary copy.
+  final String heroTagSuffix;
 
   @override
   Widget build(BuildContext context) {
@@ -79,7 +85,7 @@ class ProductCard extends StatelessWidget {
                     label: product.name,
                     seed: seed,
                     aspectRatio: StoreTheme.cardImageAspect,
-                    heroTag: 'product-image-${product.slug}',
+                    heroTag: 'product-image-${product.slug}$heroTagSuffix',
                   ),
                   // Sold-out is a state, not a styling of the price. A card
                   // that merely greys its text gives no reason why, and one

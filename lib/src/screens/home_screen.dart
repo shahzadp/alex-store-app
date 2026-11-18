@@ -349,22 +349,53 @@ class _RecentlyViewed extends StatelessWidget {
 
         return Padding(
           padding: const EdgeInsets.fromLTRB(20, 28, 20, 0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'RECENTLY VIEWED',
-                style: Theme.of(context).textTheme.labelSmall,
-              ),
-              const SizedBox(height: StoreTheme.spaceMd),
-              ProductRow(
-                products: products,
-                onTap: (p) => Navigator.of(context).push(
-                  MaterialPageRoute(
-                      builder: (_) => ProductScreen(slug: p.slug)),
+          // A panel, not a quiet strip: a bordered surface so the section reads
+          // as its own thing instead of blending into whatever is below it.
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(14, 14, 14, 6),
+            decoration: BoxDecoration(
+              color: StoreTheme.surface,
+              border: Border.all(color: StoreTheme.line),
+              borderRadius: StoreTheme.rMd,
+              boxShadow: StoreTheme.shadowSm,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.history_rounded,
+                        size: 20, color: StoreTheme.inkAccent),
+                    const SizedBox(width: StoreTheme.spaceSm),
+                    Text(
+                      'Recently viewed',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                  ],
                 ),
-              ),
-            ],
+                const Padding(
+                  padding: EdgeInsets.only(left: 28),
+                  child: Text(
+                    'Pick up where you left off',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      height: 1.4,
+                      color: StoreTheme.inkMuted,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: StoreTheme.spaceSm),
+                ProductRow(
+                  products: products,
+                  heroTagPrefix: 'recent',
+                  onTap: (p) => Navigator.of(context).push(
+                    MaterialPageRoute(
+                        builder: (_) => ProductScreen(slug: p.slug)),
+                  ),
+                ),
+              ],
+            ),
           ),
         );
       },

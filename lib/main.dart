@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
@@ -49,6 +50,11 @@ class _AlexStoreAppState extends State<AlexStoreApp> {
     // first paint of the grid lands photographs instead of tint placeholders.
     unawaited(_service.load().then(_prewarmImages));
 
+    // Warm the image host's path (DNS + TLS) while the catalog downloads, so
+    // the first grid paint does not pay the handshake too. A hint, not a
+    // dependency — failures are ignored and nothing waits on this.
+    _primeImageHost();
+
     _saved = SavedStore();
     _recent = RecentStore();
     unawaited(_saved.load());
@@ -66,6 +72,25 @@ class _AlexStoreAppState extends State<AlexStoreApp> {
     _saved.dispose();
     _recent.dispose();
     super.dispose();
+  }
+
+  /// Warm the image host's connection while the catalog downloads. Failures
+  /// are ignored — this primes the OS's DNS/TCP session, it is never the
+  /// reason anything works.
+  void _primeImageHost() {
+    final client = HttpClient()
+      ..userAgent = 'AlexStoreApp/1.0 (+flutter)'
+      ..connectionTimeout = const Duration(seconds: 4);
+    client.getUrl(Uri.parse('https://images.pexels.com/')).then((req) async {
+      try {
+        final resp = await req.close().timeout(const Duration(seconds: 4));
+        await resp.drain<void>();
+      } finally {
+        client.close(force: true);
+      }
+    }).catchError((_) {
+      client.close(force: true);
+    });
   }
 
   /// Warm the disk image cache for every image the storefront will draw —

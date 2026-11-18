@@ -17,10 +17,14 @@ class ProductRow extends StatelessWidget {
     super.key,
     required this.products,
     required this.onTap,
+    this.heroTagPrefix = 'row',
   });
 
   final List<Product> products;
   final void Function(Product) onTap;
+
+  /// Suffix for the card Hero tags, so rows never collide with the grid.
+  final String heroTagPrefix;
 
   static const double itemWidth = 150;
 
@@ -40,6 +44,7 @@ class ProductRow extends StatelessWidget {
           child: ProductCard(
             product: products[i],
             seed: i,
+            heroTagSuffix: '-$heroTagPrefix-$i',
             onTap: () => onTap(products[i]),
           ),
         ),

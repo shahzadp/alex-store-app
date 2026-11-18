@@ -579,6 +579,7 @@ class _RelatedProducts extends StatelessWidget {
         const SizedBox(height: StoreTheme.spaceMd),
         ProductRow(
           products: related,
+          heroTagPrefix: 'related',
           onTap: (p) => Navigator.of(context).push(
             MaterialPageRoute(builder: (_) => ProductScreen(slug: p.slug)),
           ),
