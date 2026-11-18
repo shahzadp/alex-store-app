@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../catalog_scope.dart';
 import '../services/catalog_service.dart';
 import '../models/catalog.dart';
-import '../models/price.dart';
 import '../services/launcher.dart';
 import '../services/whatsapp.dart';
 import '../store_scope.dart';
@@ -286,7 +285,6 @@ class _Footer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final catalog = CatalogScope.of(context).state.catalog;
-    final theme = Theme.of(context);
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 40, 20, 0),
@@ -309,12 +307,6 @@ class _Footer extends StatelessWidget {
                 whatsappButtonLabel('Message the shop on '),
               ),
             ),
-          const SizedBox(height: 14),
-          Text(
-            'Prices in Pakistani rupees. Free delivery over '
-            '${(catalog?.store.freeDeliveryOver ?? Price.zero).formatted}.',
-            style: theme.textTheme.bodySmall,
-          ),
         ],
       ),
     );

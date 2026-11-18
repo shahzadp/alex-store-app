@@ -1350,6 +1350,10 @@ write-up stays as history. The practical consequences to remember are smaller:
 - **Minor updates no longer bump the version number (owner's instruction,
   2026-11-18).** `version: 1.4.0+10` is the step; don't increment for tweaks
   or small changes. Bump only when cutting a release that will be published.
+- **The footer price-and-delivery line is gone (2026-11-18).** The
+  "Prices in Pakistani rupees. Free delivery over Rs 6,000." line in the app
+  footer was retired on request — the voucher carries the offer, the price is
+  already on every card.
 - **Hero tag collisions (2026-11-18).** The grid, the recently-viewed strip
   and the related row all emitted `product-image-<slug>`, so a back-navigation
   flight landed on an arbitrary duplicate and the image "disappeared to random
