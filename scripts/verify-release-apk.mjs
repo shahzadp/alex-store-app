@@ -16,7 +16,6 @@
  *     symbol to the engine and this checks it automatically
  *   * the expected signing certificate comes from docs/assetlinks.json
  *   * the expected model hashes come from rust/src/assets/model-from-wasm.json
- *   * the launch video's path comes from lib/src/screens/splash_screen.dart
  *
  * Run it after scripts/build-apk.mjs:
  *
@@ -47,7 +46,6 @@ const NATIVE_ENGINE_DART = resolve(ROOT, 'lib/src/services/native_engine.dart');
 const ASSETLINKS = resolve(ROOT, 'docs/assetlinks.json');
 const MODEL_JSON = resolve(ROOT, 'rust/src/assets/model-from-wasm.json');
 const MODEL_BIN = resolve(ROOT, 'rust/src/assets/model.bin');
-const SPLASH_DART = resolve(ROOT, 'lib/src/screens/splash_screen.dart');
 const MAPPING_DIR = resolve(ROOT, 'build/app/outputs/mapping/release');
 
 // The debug keystore's certificate. It is a public file — every Android SDK
@@ -177,7 +175,6 @@ function main() {
     checkNativeLibrary(work, symbols);
     checkDartKeptSymbolStrings(work, symbols);
     checkModel(work);
-    checkSplash(work);
     checkSystemSplash();
     checkPackageVisibility();
     checkManifestHardening();
@@ -490,69 +487,12 @@ function checkModel(work) {
   );
 }
 
-/** The launch video's path inside the bundle, as the app itself names it. */
-function splashAssetPath() {
-  const m = fs.readFileSync(SPLASH_DART, 'utf8').match(/defaultAsset\s*=\s*'([^']+)'/);
-  return m ? m[1] : null;
-}
-
 /**
- * The launch video, and only that.
- *
- * This is here because `isShrinkResources = true` is on in app/build.gradle.kts.
- * Flutter assets are bundled as plain files rather than as Android resources, so
- * the resource shrinker has no business touching them — but a splash whose video
- * has been dropped is a black screen on launch, which is both the worst possible
- * first impression and the sort of thing that only ever appears on a device.
- * Reading the asset back out and hashing it is cheap and settles it.
- */
-function checkSplash(work) {
-  heading('Launch video');
-
-  const assetPath = splashAssetPath();
-  if (!assetPath) {
-    record('SplashScreen names its video', false, 'no defaultAsset in lib/src/screens/splash_screen.dart');
-    return;
-  }
-
-  const source = resolve(ROOT, assetPath);
-  if (!fs.existsSync(source)) {
-    record('the launch video is in the repository', false, `missing ${assetPath}`);
-    return;
-  }
-
-  const packaged = join(work, 'assets', 'flutter_assets', assetPath);
-  if (!fs.existsSync(packaged)) {
-    record('the launch video is in the APK', false, `no ${assetPath} under assets/flutter_assets`);
-    return;
-  }
-
-  const shipped = fs.readFileSync(packaged);
-
-  // Every MP4 opens with a `ftyp` box at offset 4. A placeholder, an empty file
-  // left by a failed copy, or an HTML error page all fail this.
-  record(
-    'the packaged video is a real MP4',
-    shipped.length > 12 && shipped.toString('latin1', 4, 8) === 'ftyp',
-    shipped.length > 12 ? `${(shipped.length / 1024).toFixed(0)} KB, brand ${shipped.toString('latin1', 8, 12).trim()}` : 'too short',
-  );
-
-  record(
-    'the packaged video is the repository\'s video, byte for byte',
-    sha256(shipped) === sha256(fs.readFileSync(source)),
-    sha256(shipped).slice(0, 32) + '…',
-  );
-}
-
-/**
- * Android 12's system splash, and the one thing about the launch that cannot be
- * fixed from Dart.
- *
- * `android:windowSplashScreenAnimatedIcon` defaults to the app's own launcher
- * icon, so the system splash drew the shop's mark centred and motionless for the
- * whole cold start — and the launch video then animated the same mark in. The
- * same drawing twice, once dead: it reads as a stutter rather than a title, and
- * it is only visible on a device, which is exactly why it needs a check.
+ * Android 12's system splash — the only thing a shopper sees before Flutter
+ * paints its first frame. It draws no icon, deliberately: a pure gradient,
+ * static, replaced by the shop as soon as the engine is up. The old blank-icon
+ * decision existed to blend into the launch video; the video is gone, and a
+ * bare gradient is both faster and cleaner than any motionless mark.
  */
 function checkSystemSplash() {
   heading('Android 12 system splash');

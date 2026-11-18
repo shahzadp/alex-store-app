@@ -74,7 +74,7 @@ lib/
       deep_link_service.dart    storefront links -> the matching product
       local_stores.dart         saved + recently viewed, on-device JSON lists
       voucher_store.dart        the once-per-install voucher marker
-    screens/                    home, shop, search, saved, product, main shell, splash
+    screens/                    home, shop, search, saved, product, main shell
     widgets/
       product_card.dart        the card, with the grid that sizes it
       product_image.dart       image + the placeholder every product uses
@@ -86,7 +86,7 @@ lib/
     theme.dart                  the site's palette, type scale, card metrics
 
 assets/
-  splash/alex-store.mp4         the launch video (see "The launch video")
+  icon/                         the app icon
 
 rust/
   Cargo.toml
@@ -193,8 +193,8 @@ it regresses:
 | `android:networkSecurityConfig` | `res/xml/network_security_config.xml` | Cleartext on any domain, and trust anchors beyond the system store |
 
 The app has exactly one network origin — `https://shahzadp.github.io/store` — and
-everything else (the search engine, the model, the launch video) is inside the
-APK. There is no local dev server, so the config has no exception to carve out.
+everything else (the search engine and the model) is inside the APK. There is no
+local dev server, so the config has no exception to carve out.
 The catalog is the product data shown to shoppers, which is why the trust
 anchors are the system store only: a proxy certificate cannot rewrite prices or
 stock.
@@ -275,51 +275,28 @@ Regenerate the fixture after any catalog or model change:
 node scripts/extract-site-vectors.mjs
 ```
 
-## The launch video
+## The launch splash (no video)
 
-The app opens with a video — the same title animation the storefront uses — rather
-than the blank Android window the Flutter template ships. `assets/splash/alex-store.mp4`
-is the published render of `AlexStore.tsx` in the Remotion project
-(`Remotion/src/compositions/AlexStore`), 1080x1920, 30 fps, 150 frames, with its
-audio.
+The app opens directly into the shop. An earlier version played a five-second
+title film (`assets/splash/alex-store.mp4`) on top of the app; it was repetitive
+and taxed every cold start with decode and fade for every shopper, every time —
+it was removed on 2026-11-18.
 
-Three things are worth knowing about how it is wired.
+What remains is a plain, fast launch surface:
 
-**It is an overlay, not a route.** `SplashScreen` is stacked above `MaterialApp`'s
-navigator via `builder:` in `lib/main.dart`, so `home` is built on the very first
-frame underneath it. The catalog fetch and the whole home layout therefore happen
-*while* the video plays, and the reveal is instant. A pushed route would hold the
-fetch back for the length of the clip and then show a loading state — the opposite
-of what a splash is for.
-
-**The fade is the composition's own.** `AlexStore.tsx` fades out over frames
-140→150; `SplashScreen.defaultFadeOut` is that same 333 ms, so the overlay
-dissolves at the speed the video fades and the hand-off is one continuous fade
-rather than a cut. `test/splash_test.dart` fails if the two ever disagree.
-
-**The Android window is the same gradient.** The video's opening frame is a
-`#f5f3ff → #fdf2f8 → #ecfeff` wash. `res/values/colors.xml` holds those three
-stops and `res/drawable/launch_background.xml` paints them, so the few hundred
-milliseconds before Flutter starts are the same surface as the first frame rather
-than a white — or, in dark mode, black — flash. `res/values-v31/` and
-`res/values-night-v31/` do the same for Android 12's system splash, which reads
-`windowSplashScreenBackground` instead of `windowBackground`, and also set that
-splash's *icon* to a blank drawable (`res/drawable/splash_icon.xml`). Left alone,
-Android draws the app's launcher icon there — the shop's mark, motionless — and
-the video then animates the same mark, which reads as the same drawing twice,
-once dead. The video's opening frame has no logo in it, so the backdrop alone is
-what actually continues into the film. `splash_test.dart` asserts the XML and the
-Dart backdrop carry the same three values.
-
-**Nothing here can strand a user.** A video that will not load, a decoder that
-reports an error and a playback that stalls all fall through to the next screen;
-the splash is never why the app did not open. That path is tested directly.
-
-Cost: the clip is 1.1 MB, and `video_player` brings ExoPlayer (media3) in on
-Android. The APK went from 27.5 MB to 29.3 MB, of which 1.1 MB is the video
-itself; R8 shrinks the rest. `scripts/verify-release-apk.mjs` checks the video
-came out the other side byte for byte, because `isShrinkResources = true` is on,
-and that the system splash has no icon in it.
+**The Android window is a gradient, not a logo.** `res/values/colors.xml` holds
+`#f5f3ff → #fdf2f8 → #ecfeff` and `res/drawable/launch_background.xml` paints
+it, so the few hundred milliseconds before Flutter starts are a deliberate
+surface rather than a white — or, in dark mode, black — flash.
+`res/values-v31/` and `res/values-night-v31/` do the same for Android 12's
+system splash, which reads `windowSplashScreenBackground` instead of
+`windowBackground`, and both point `windowSplashScreenAnimatedIcon` at a blank
+drawable (`res/drawable/splash_icon.xml`, a shape over transparent). Android
+would otherwise draw the launcher mark there, motionless, for the whole cold
+start; a silent gradient is both faster and calmer.
+`scripts/verify-release-apk.mjs` checks the blank icon resolves to that
+drawable and that the drawable is blank — a reference to a real icon would
+satisfy the first half on its own.
 
 ## The site side
 
@@ -416,12 +393,13 @@ rather than proceeding, and checks `search_model` from the catalog against
   ABIs it cannot run. On an x86_64 emulator the app installs and browses with
   search disabled (`engineUnavailable`); `node scripts/build-apk.mjs --abis
   android-x64` fixes that for local work.
-- **The launch video is confirmed on one device now, and that is how the system
-  splash defect was found.** The clip plays with its audio and the fade matches
-  the composition; what made the first attempt wrong — Android drawing its own
-  copy of the mark before the video animated it — was invisible to every check
-  here and obvious on a handset the moment it opened. The Android 12 system
-  splash and the video's decode are now confirmed, not just verified as bytes.
+- **The launch video was confirmed on one device — and then removed
+  (2026-11-18).** It played with its audio and the fade matched the
+  composition, but the intro was repetitive, slowed every cold start, and taxed
+  every shopper for a clip they had already seen. It and `video_player` are
+  gone; the Android 12 system splash is now the whole pre-Flutter surface
+  (a bare gradient). The system-splash and decode findings below remain the
+  record of the video era.
 - **The app has run on one device, and device testing found things unit tests
   did not.** The release build shipped with no `INTERNET` permission (Flutter's
   template puts it only in the debug manifest), the product grid overlapped
@@ -457,7 +435,3 @@ Third-party components keep their own permissive licences, listed in
   built with `flutter_rust_bridge` (MIT) first, which was abandoned — see
   MEMORY.md §6 for why.
 - `url_launcher`, `path_provider` — BSD-3.
-- `video_player` (BSD-3) and, through it on Android,
-  [AndroidX Media3](https://github.com/androidx/media) / ExoPlayer
-  (Apache-2.0). Used for the launch video and nothing else; see
-  "The launch video".

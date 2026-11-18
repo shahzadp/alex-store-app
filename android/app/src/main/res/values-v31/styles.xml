@@ -4,26 +4,20 @@
       Android 12 (API 31) replaced the windowBackground splash with a system
       splash: an icon, centred, on a solid colour. It does not read
       launch_background, so without the attributes below it picks its own
-      colour â€” white in light mode, and in dark mode black, which would be a
-      black flash in front of a light video.
+      colour — white in light mode, and in dark mode black, which would be a
+      dark flash before the shop paints.
 
-      windowSplashScreenBackground is the top stop of the video's gradient: the
-      same value the launch window was already using, so the system splash and
-      the window behind Flutter are the same colour and the changeover is not
-      visible.
+      windowSplashScreenBackground is the top stop of the launch gradient; the
+      same value the window behind Flutter uses, so the hand-off is invisible.
 
       windowSplashScreenAnimatedIcon is set to a deliberately BLANK drawable
       (res/drawable/splash_icon.xml). Left alone, it defaults to the app's
-      launcher icon, which drew the shop's mark here motionless and then had the
-      launch video animate the same mark a moment later â€” the same drawing
-      twice, once dead, which reads as a stutter rather than a title. The
-      video's opening frame contains no logo (the mark springs in at about
-      1.25 s), so the backdrop alone is the frame that actually continues into
-      the film.
+      launcher icon — the shop's mark, motionless, for the whole cold start.
+      A silent gradient is faster and calmer.
 
       Only LaunchTheme is restated here. Resource qualifying is per-style, so
       this file replaces LaunchTheme for API 31+ while NormalTheme still
-      resolves from values/ â€” or from values-night/ in dark mode, because night
+      resolves from values/ — or from values-night/ in dark mode, because night
       mode outranks platform version in Android's resource selection. That is
       exactly why values-night-v31/styles.xml exists as well.
     -->

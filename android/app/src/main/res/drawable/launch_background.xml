@@ -4,12 +4,10 @@
   its first frame.
 
   This used to be flat white. A cold start shows this window for a few hundred
-  milliseconds, so a white rectangle preceded the launch video every time. It is
-  now the video's own opening gradient — see values/colors.xml for where those
-  three stops come from and why they are those values.
+  milliseconds, so a white rectangle was the whole launch. It is now a soft
+  gradient — see values/colors.xml for the three stops.
 
-  `angle="270"` is top to bottom, so startColor is the top of the screen, which
-  is the orientation the composition uses.
+  `angle="270"` is top to bottom, so startColor is the top of the screen.
 -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item>

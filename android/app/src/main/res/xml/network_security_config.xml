@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
   Every request this app makes is HTTPS: one catalog fetch from
-  shahzadp.github.io, and everything else (the search engine, the model, the
-  launch video) is inside the APK. There is no local dev server and no second
-  origin, so cleartext is denied globally rather than allowed per domain.
+  shahzadp.github.io, and everything else (the search engine, the model) is
+  inside the APK. There is no local dev server and no second origin, so
+  cleartext is denied globally rather than allowed per domain.
 
   Trust anchors are the system store only. That is already the platform default
   for an app targeting API 24+, and writing it out is what makes it reviewable:

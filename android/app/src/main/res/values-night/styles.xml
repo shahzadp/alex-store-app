@@ -3,11 +3,10 @@
     <!-- Theme applied to the Android Window while the process is starting when
          the OS's Dark Mode setting is on.
 
-         The launch backdrop is the light gradient of the launch video, and the
-         video is light regardless of the OS theme, so LaunchTheme keeps the
-         LIGHT parent here. The template used Theme.Black.NoTitleBar, which is
-         why the first moment of the app was a black flash in dark mode — and
-         why the status bar icons above it have to be forced dark. -->
+         The launch backdrop is a light gradient regardless of the OS theme, so
+         LaunchTheme keeps the LIGHT parent here. The template used Theme.Black.NoTitleBar,
+         which is why the first moment of the app was a black flash in dark mode —
+         and why the status bar icons above it have to be forced dark. -->
     <style name="LaunchTheme" parent="@android:style/Theme.Light.NoTitleBar">
         <item name="android:windowBackground">@drawable/launch_background</item>
         <item name="android:windowLightStatusBar">true</item>

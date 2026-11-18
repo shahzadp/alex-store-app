@@ -12,13 +12,14 @@ self-contained.
 ## 1. Current state
 
 - Flutter app, Android target, tab shell (home, shop, search, saved) plus the
-  product page, and the launch video that opens the app. (The About screen was
-  removed; see §3. The five-screen push-based layout became a bottom-nav tab
-  shell on 2026-11-18; see §7.)
-- **The app opens with a video.** `assets/splash/alex-store.mp4` — the same
-  render of the storefront's title animation — plays over the app with its audio,
-  and the app is already built underneath it, so the reveal is instant. See §3,
-  "The launch video: an overlay, an exact fade, and three places that must agree".
+  product page. (The About screen was removed; see §3. The five-screen
+  push-based layout became a bottom-nav tab shell on 2026-11-18; see §7. The
+  launch video was removed the same day; see §7.)
+- **The app opens directly into the shop.** There is no launch video any more
+  (it was repetitive, slow and 5 seconds long for every shopper, every time).
+  The pre-Flutter surface is now the bare Android 12 system splash — a static
+  `#f5f3ff → #fdf2f8 → #ecfeff` gradient with a blank icon — which hands over
+  to Flutter almost instantly. See §7.
 - Reads the site's `catalog.json` on every launch; caches a copy for offline.
 - Search: ternlight `base@0.1.1`, **compiled to native Rust** and called over
   `dart:ffi`, ranking the site's published vectors. The boundary is
@@ -31,9 +32,10 @@ self-contained.
   bit-exactly (worst per-dimension difference `0.000e+0`), so the app's rankings
   are the site's rankings. See §3.
 - **The release is signed with a real key and obfuscated with R8.** `v1.1` is
-  published — the launch video and the corrected system splash — and the site's
-  button delivers it. See §3, "The release is published, and the button delivers
-  it byte-for-byte".
+  published and the site's button delivers it; `v1.3.0+8` and `v1.3.1+9` carry
+  the launch video removal and the storefront work and are **not** published
+  yet — a `v1.3.0`/`v1.3.1` release artifact has to be built on demand. See
+  §3, "The release is published, and the button delivers it byte-for-byte".
 - **`v1.1` could not order on Android 11+.** Its WhatsApp button asked
   `canLaunchUrl` before launching, and package visibility makes that answer
   false for every scheme unless the manifest declares them — so on those handsets
@@ -43,7 +45,7 @@ self-contained.
   is the same version to the installer, so the fix would never have been offered
   as an update.
 - **The repository is not open source, and GitHub now agrees.** `LICENSE` is
-  all-rights-reserved over the app, its name, icon and video; the vendored
+  all-rights-reserved over the app, its name and icon; the vendored
   ternlight MIT notice moved to `THIRD_PARTY_NOTICES.md` so the licence detector
   stops reading it as this repository's licence. The signing certificate
   fingerprint in `docs/assetlinks.json` is what README offers as proof of an
@@ -1297,6 +1299,34 @@ nothing talks to a backend except the prefilled WhatsApp message.
 - **Not verified on a device.** `flutter analyze` clean; `flutter test` 130/130.
   Nobody has held a handset with this build yet; the saved badge and the
   bottom bar deserve eyes before the next `v1.x` release.
+
+---
+
+**Launch video removed (2026-11-18).** The shopper-facing intro was, in the
+owner's words, "annoying and repetitive and slow torture" — five seconds of
+title film with audio on every cold start, for a shop they had not asked for.
+Everything tied to it is gone: `SplashScreen`, `video_player` (+ExoPlayer and
+friends, which had already grown the APK by ~2 MB), the MP4 asset, the
+`test/splash_test.dart` guard, the launch-video checks in
+`verify-release-apk.mjs`, and the version-history comments about the splash.
+The pre-Flutter surface is now exactly what the Android 12 system splash
+provides: a static `#f5f3ff → #fdf2f8 → #ecfeff` gradient with a blank icon —
+no motion, no audio, and effectively instant. `res/values-v31/` and
+`values-night-v31/` keep the gradient; the 2026-11-18 cold-start is the
+artifact of one decision (blank icon) applied with zero video scaffolding on
+top. No Remotion source was deleted (it lives outside this repo).
+
+Nothing here invalidates the record of the video era — §3's launch-video
+write-up stays as history. The practical consequences to remember are smaller:
+
+- the system splash is the only intro surface; a cold start shows the gradient
+  and then the shop — there is no longer anything to fade, and no fade test.
+- `flutter pub get` removed 7 packages; `pubspec.lock` moved with it.
+- `splash_screen.dart` is deleted along with the `isShrinkResources`-guarding
+  video check in `verify-release-apk.mjs`; the system-splash blank-icon checks
+  remain, because the blank icon is still the whole pre-Flutter surface.
+- The APK is measurably smaller without ExoPlayer; re-check the next build's
+  size against the old 29.6 MB before calling it a regression or a win.
 
 ---
 

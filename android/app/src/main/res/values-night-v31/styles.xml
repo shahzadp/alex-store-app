@@ -7,8 +7,8 @@
       values-night/ and lose the system-splash attributes entirely.
 
       Identical to values-v31/styles.xml, and deliberately so — the launch
-      backdrop is the light gradient of the video in both cases. See that file
-      for what each attribute is for.
+      backdrop is a light gradient in both cases. See that file for what each
+      attribute is for.
     -->
     <style name="LaunchTheme" parent="@android:style/Theme.Light.NoTitleBar">
         <item name="android:windowBackground">@drawable/launch_background</item>

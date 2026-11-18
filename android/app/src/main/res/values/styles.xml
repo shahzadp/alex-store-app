@@ -3,14 +3,14 @@
     <!-- Theme applied to the Android Window while the process is starting.
          Automatically removed when the Flutter engine draws its first frame.
 
-         windowBackground is the launch video's own opening gradient (see
-         values/colors.xml), and windowLightStatusBar is set because that
-         backdrop is light in every OS theme — without it the status bar icons
-         would be drawn light-on-light and disappear for the first moment of the
-         app. There used to be a drawable-v21/launch_background.xml as well:
-         it existed only to pick ?android:colorBackground on API 21+, and this
-         app's minSdk is 24, so it was always the one that won. It has been
-         removed rather than kept in step. -->
+         windowBackground is the launch gradient (see values/colors.xml), and
+         windowLightStatusBar is set because that backdrop is light in every OS
+         theme — without it the status bar icons would be drawn light-on-light
+         and disappear for the first moment of the app. There used to be a
+         drawable-v21/launch_background.xml as well: it existed only to pick
+         ?android:colorBackground on API 21+, and this app's minSdk is 24, so it
+         was always the one that won. It has been removed rather than kept in
+         step. -->
     <style name="LaunchTheme" parent="@android:style/Theme.Light.NoTitleBar">
         <item name="android:windowBackground">@drawable/launch_background</item>
         <item name="android:windowLightStatusBar">true</item>

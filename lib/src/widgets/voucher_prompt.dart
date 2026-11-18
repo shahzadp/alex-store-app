@@ -2,8 +2,8 @@
 ///
 /// This replaces the old announcement strip: the same offer, announced once
 /// rather than pinned above every screen. It is a plain overlay — not a route —
-/// so it sits above whatever the shopper was looking at (including the launch
-/// video) without disturbing navigation.
+/// so it sits above whatever the shopper was looking at without disturbing
+/// navigation.
 ///
 /// The confetti is drawn by hand with a [CustomPainter] and one
 /// [AnimationController]. A confetti package would be a dependency for a
