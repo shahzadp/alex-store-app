@@ -566,8 +566,11 @@ class _RelatedProducts extends StatelessWidget {
     final sameCategory = current == null
         ? const <Product>[]
         : others.where((p) => p.category == current.category).toList();
-    final related =
-        (sameCategory.isNotEmpty ? sameCategory : others).take(4).toList();
+    final sameSet = sameCategory.toSet();
+    final related = [
+      ...sameCategory,
+      ...others.where((p) => !sameSet.contains(p)),
+    ].take(4).toList();
 
     if (related.isEmpty) return const SizedBox.shrink();
 
