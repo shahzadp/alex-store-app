@@ -10,10 +10,10 @@
       windowSplashScreenBackground is the top stop of the launch gradient; the
       same value the window behind Flutter uses, so the hand-off is invisible.
 
-      windowSplashScreenAnimatedIcon is set to a deliberately BLANK drawable
-      (res/drawable/splash_icon.xml). Left alone, it defaults to the app's
-      launcher icon — the shop's mark, motionless, for the whole cold start.
-      A silent gradient is faster and calmer.
+      windowSplashScreenAnimatedIcon is the shop's monogram (the same glyph the
+      launcher icon carries, without the white tile behind it), so the cold
+      start is: gradient with the mark, then the shop. One mark, no video,
+      nothing repetitive.
 
       Only LaunchTheme is restated here. Resource qualifying is per-style, so
       this file replaces LaunchTheme for API 31+ while NormalTheme still
@@ -25,6 +25,6 @@
         <item name="android:windowBackground">@drawable/launch_background</item>
         <item name="android:windowLightStatusBar">true</item>
         <item name="android:windowSplashScreenBackground">@color/splash_top</item>
-        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_icon</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
     </style>
 </resources>

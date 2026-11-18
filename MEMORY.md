@@ -18,8 +18,12 @@ self-contained.
 - **The app opens directly into the shop.** There is no launch video any more
   (it was repetitive, slow and 5 seconds long for every shopper, every time).
   The pre-Flutter surface is now the bare Android 12 system splash — a static
-  `#f5f3ff → #fdf2f8 → #ecfeff` gradient with a blank icon — which hands over
-  to Flutter almost instantly. See §7.
+  `#f5f3ff → #fdf2f8 → #ecfeff` gradient with the shop's monogram — which hands
+  over to Flutter almost instantly. See §7.
+- **Product photographs are disk-cached and pre-warmed.** `CachedNetworkImage`
+  keeps them on disk, and `_prewarmImages` warms the cache for every
+  product and collection image as soon as the catalog lands, so a warm cold
+  start paints photos instead of tint placeholders.
 - Reads the site's `catalog.json` on every launch; caches a copy for offline.
 - Search: ternlight `base@0.1.1`, **compiled to native Rust** and called over
   `dart:ffi`, ranking the site's published vectors. The boundary is
@@ -1320,13 +1324,22 @@ Nothing here invalidates the record of the video era — §3's launch-video
 write-up stays as history. The practical consequences to remember are smaller:
 
 - the system splash is the only intro surface; a cold start shows the gradient
-  and then the shop — there is no longer anything to fade, and no fade test.
+  with the monogram and then the shop — one static mark, no video.
 - `flutter pub get` removed 7 packages; `pubspec.lock` moved with it.
 - `splash_screen.dart` is deleted along with the `isShrinkResources`-guarding
-  video check in `verify-release-apk.mjs`; the system-splash blank-icon checks
-  remain, because the blank icon is still the whole pre-Flutter surface.
-- The APK is measurably smaller without ExoPlayer; re-check the next build's
-  size against the old 29.6 MB before calling it a regression or a win.
+  video check in `verify-release-apk.mjs`; the system-splash checks remain and
+  now pin the monogram (`ic_launcher_foreground`) in both API-31 themes.
+- The APK is measurably smaller without ExoPlayer: 29.6 MB → 27.8 MB
+  (`1.3.1+9`).
+- **The bare-gradient-only splash read as empty to the owner, so the monogram
+  is now the icon in both v31 themes** (2026-11-18). The no-icon rule existed
+  only to avoid doubling the launch video; with the video gone, one static
+  mark is the whole point of the surface — the same space-filling job the
+  gradient alone could not do without feeling unfinished.
+- **Photographs are disk-cached (`cached_network_image`) and pre-warmed at
+  catalog load** (`_prewarmImages` in `main.dart`), because the app previously
+  re-downloaded all ~70 KB-per-photo images on every cold start and started
+  fetching only as grid cells built. Warm launches now paint from disk.
 
 ---
 

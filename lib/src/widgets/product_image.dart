@@ -3,23 +3,25 @@
 ///
 /// # This placeholder is the product image, not a fallback
 ///
-/// Every `image_url` in `catalog.json` is currently null (MEMORY.md §6, open
-/// work), so this is what a shopper sees for every product. That makes it the
-/// single most-viewed element in the app, and it is why it is styled rather
-/// than merely "something until the photo exists".
+/// Every `image_url` in `catalog.json` at the time of the Flutter rewrite was
+/// null (MEMORY.md §6, open work), so this is what a shopper saw for every
+/// product. Photographs have since landed, but the placeholder stayed as the
+/// graceful path when a URL fails or is absent — and as the loading surface.
 ///
-/// The earlier version rendered the product name in 12px over a flat colour
-/// field. Read as "image missing" — which is accurate, but accurate is not the
-/// same as confident, and a shop whose every product looks like a broken image
-/// is a shop that looks untrustworthy.
+/// The treatment (unchanged since the rewrite): a soft two-stop tint, the name
+/// set properly rather than dumped in the middle, and a corner radius from the
+/// shared scale. No invented imagery, no fake photography, no icon pretending
+/// to be a picture — MEMORY.md §4 only allows what is verifiable.
 ///
-/// The treatment now: a soft two-stop tint, the name set properly rather than
-/// dumped in the middle, and a corner radius from the shared scale. No invented
-/// imagery, no fake photography, no icon pretending to be a picture — MEMORY.md
-/// §4 only allows what is verifiable.
+/// # Photographs load through a disk cache
+///
+/// `CachedNetworkImage` keeps fetched photographs on disk, so a warm launch
+/// paints them immediately instead of re-downloading ~70 KB apiece on every
+/// open. See MEMORY.md §7 for why the app refetches otherwise.
 library;
 
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 import '../theme.dart';
 
@@ -94,27 +96,17 @@ class ProductImage extends StatelessWidget {
           borderRadius: borderRadius,
           child: AspectRatio(
             aspectRatio: aspectRatio,
-            child: Image.network(
-              url,
+            child: CachedNetworkImage(
+              imageUrl: url,
               fit: BoxFit.cover,
               // A network image must never leave a hole in the grid. Falling
               // back to the tint keeps the row height identical, which matters
               // because the grid is uniform by construction.
-              errorBuilder: (_, __, ___) => _placeholder(context),
-              loadingBuilder: (context, child, progress) {
-                if (progress == null) return child;
-                return _placeholder(context);
-              },
+              errorWidget: (_, __, ___) => _placeholder(context),
+              placeholder: (context, _) => _placeholder(context),
               // Cross-fade in rather than popping, so the layout is stable.
-              frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
-                if (wasSynchronouslyLoaded) return child;
-                return AnimatedOpacity(
-                  opacity: frame == null ? 0 : 1,
-                  duration: StoreTheme.durationMed,
-                  curve: StoreTheme.curveStandard,
-                  child: child,
-                );
-              },
+              fadeInDuration: const Duration(milliseconds: 180),
+              placeholderFadeInDuration: StoreTheme.durationMed,
             ),
           ),
         ),

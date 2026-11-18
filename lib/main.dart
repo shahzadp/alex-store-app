@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 import 'src/catalog_scope.dart';
@@ -43,7 +44,10 @@ class _AlexStoreAppState extends State<AlexStoreApp> {
     // shows skeletons off `service.stream` while this resolves — blocking on
     // the network would mean a white screen on a slow connection, which is the
     // single worst first impression a store can give.
-    unawaited(_service.load());
+    //
+    // The `.then` warms the disk image cache for every catalogue image, so the
+    // first paint of the grid lands photographs instead of tint placeholders.
+    unawaited(_service.load().then(_prewarmImages));
 
     _saved = SavedStore();
     _recent = RecentStore();
@@ -62,6 +66,32 @@ class _AlexStoreAppState extends State<AlexStoreApp> {
     _saved.dispose();
     _recent.dispose();
     super.dispose();
+  }
+
+  /// Warm the disk image cache for every image the storefront will draw —
+  /// products and the collections strip — so the first paint lands photographs
+  /// instead of tint placeholders. Runs once, after the catalog lands; keeps
+  /// nothing, and failures are swallowed (a slow image still renders, just
+  /// later).
+  void _prewarmImages(CatalogState state) {
+    final catalog = state.catalog;
+    if (catalog == null) return;
+
+    final context = _navigatorKey.currentContext;
+    if (context == null) return;
+
+    final urls = <String?>[
+      for (final product in catalog.products) product.imageUrl,
+      for (final collection in catalog.collections) collection.imageUrl,
+    ];
+
+    for (final url in urls) {
+      if (url == null || url.isEmpty) continue;
+      unawaited(
+        precacheImage(CachedNetworkImageProvider(url), context)
+            .catchError((_) {}),
+      );
+    }
   }
 
   /// Open the product a website link pointed at.

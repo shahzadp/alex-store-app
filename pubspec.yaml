@@ -17,7 +17,7 @@ publish_to: "none"
 # concerned, whatever the bytes are. Anything published from here on gets its
 # own versionCode, and the number below is bumped whenever the artifact changes
 # rather than only when the feature set does.
-version: 1.3.1+9
+version: 1.4.0+10
 
 environment:
   sdk: ">=3.5.0 <4.0.0"
@@ -46,6 +46,12 @@ dependencies:
   # without a plugin binding.
   path_provider: ^2.1.4
   app_links: ^7.2.2
+
+  # Product photographs are fetched from Pexels on every cold start otherwise;
+  # Flutter's stock network image path has no disk cache. CachedNetworkImage
+  # keeps them on disk so a warm launch paints photos immediately instead of
+  # re-downloading ~70 KB apiece. See MEMORY.md §7.
+  cached_network_image: ^3.4.1
 
 dev_dependencies:
   flutter_test:

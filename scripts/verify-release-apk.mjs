@@ -489,10 +489,9 @@ function checkModel(work) {
 
 /**
  * Android 12's system splash — the only thing a shopper sees before Flutter
- * paints its first frame. It draws no icon, deliberately: a pure gradient,
- * static, replaced by the shop as soon as the engine is up. The old blank-icon
- * decision existed to blend into the launch video; the video is gone, and a
- * bare gradient is both faster and cleaner than any motionless mark.
+ * paints its first frame. It draws the shop's monogram on the launch gradient:
+ * one static mark, no video, nothing repetitive. It is deliberately not the
+ * launcher icon's white tile — the monogram alone, on the brand gradient.
  */
 function checkSystemSplash() {
   heading('Android 12 system splash');
@@ -510,25 +509,25 @@ function checkSystemSplash() {
   }
 
   // 0x0101062d is android:windowSplashScreenAnimatedIcon. Both API-31 themes
-  // have to agree, so it must appear twice and point at the blank drawable both
+  // have to agree, so it must appear twice and point at the monogram both
   // times.
   const iconRefs = [...dump.matchAll(/0x0101062d=(\S+)/g)].map((m) => m[1]);
   const unique = [...new Set(iconRefs)];
   record(
-    'the system splash draws no icon, in both API-31 themes',
-    iconRefs.length >= 2 && unique.length === 1 && unique[0] === '@drawable/splash_icon',
+    'the system splash draws the shop monogram, in both API-31 themes',
+    iconRefs.length >= 2 && unique.length === 1 && unique[0] === '@drawable/ic_launcher_foreground',
     iconRefs.length === 0
       ? 'windowSplashScreenAnimatedIcon (0x0101062d) is absent, so Android draws the launcher icon'
       : `${iconRefs.length} theme variant(s) -> ${unique.join(', ')}`,
   );
 
-  // And that the drawable really is blank: pointing it at an icon would satisfy
-  // the check above and still put the mark on screen. aapt2 renames resource
-  // files during optimisation, so the path has to come out of the dump rather
-  // than be assumed.
-  const path = dump.match(/drawable\/splash_icon[^\n]*\n\s*\([^)]*\)\s*\(file\)\s*(\S+)/)?.[1];
+  // And that the drawable really is the monogram vector: pointing it at the
+  // blank transparent shape would satisfy the reference check and still show
+  // nothing. aapt2 renames resource files during optimisation, so the path
+  // has to come out of the dump rather than be assumed.
+  const path = dump.match(/drawable\/ic_launcher_foreground[^\n]*\n\s*\([^)]*\)\s*\(file\)\s*(\S+)/)?.[1];
   if (!path) {
-    record('that drawable is blank', false, 'drawable/splash_icon not found in the resource table');
+    record('that drawable is the monogram vector', false, 'drawable/ic_launcher_foreground not found in the resource table');
     return;
   }
 
@@ -538,12 +537,16 @@ function checkSystemSplash() {
     /E: shape/.test(tree) &&
     /android:color\(0x010101a5\)=@0x0106000d/.test(tree) &&
     !/E: (bitmap|vector|path|gradient)\b/.test(tree);
+  const isMonogram =
+    /E: vector/.test(tree) &&
+    /E: path/.test(tree) &&
+    !blank;
   record(
-    'that drawable is blank',
-    blank,
-    blank
-      ? `${path} is a shape over android:color/transparent and nothing else`
-      : `${path} is not a blank shape`,
+    'that drawable is the monogram vector',
+    isMonogram,
+    isMonogram
+      ? `${path} is a vector with ${(tree.match(/E: path/g) || []).length} path(s)`
+      : `${path} is not the ic_launcher_foreground vector`,
   );
 }
 
