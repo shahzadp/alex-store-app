@@ -99,14 +99,18 @@ class ProductImage extends StatelessWidget {
             child: CachedNetworkImage(
               imageUrl: url,
               fit: BoxFit.cover,
+              // Decode at a display-sized pixel width, not the full 800px
+              // the CDN serves: the grid cell is ~170 logical px and the
+              // product-page hero ~350, so this roughly halves decode time.
+              maxWidthDiskCache: 640,
               // A network image must never leave a hole in the grid. Falling
               // back to the tint keeps the row height identical, which matters
               // because the grid is uniform by construction.
               errorWidget: (_, __, ___) => _placeholder(context),
               placeholder: (context, _) => _placeholder(context),
               // Cross-fade in rather than popping, so the layout is stable.
-              fadeInDuration: const Duration(milliseconds: 180),
-              placeholderFadeInDuration: StoreTheme.durationMed,
+              fadeInDuration: const Duration(milliseconds: 90),
+              placeholderFadeInDuration: const Duration(milliseconds: 120),
             ),
           ),
         ),

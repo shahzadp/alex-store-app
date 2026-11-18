@@ -42,7 +42,13 @@ class ProductCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    // A staggered rise-and-fade on first layout, so the grid arrives as a
+    // cascade rather than a snap. The card replays only when it is genuinely
+    // rebuilt fresh (a new grid), never on a reflow of existing cards.
+    // Skipped entirely when the shopper asked for less motion.
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+
+    Widget child = Padding(
       padding:
           const EdgeInsets.symmetric(vertical: StoreTheme.cardVerticalPadding),
       child: Material(
@@ -120,6 +126,22 @@ class ProductCard extends StatelessWidget {
               ),
             ],
           ),
+        ),
+      ),
+    );
+
+    if (reduceMotion) return child;
+
+    return TweenAnimationBuilder<double>(
+      // Unmount-only replay: the stagger plays when a grid of cards is born.
+      tween: Tween<double>(begin: 0, end: 1),
+      duration: Duration(milliseconds: 300 + seed * 45),
+      curve: Curves.easeOutCubic,
+      builder: (context, t, _) => Opacity(
+        opacity: t,
+        child: Transform.translate(
+          offset: Offset(0, (1 - t) * 14),
+          child: child,
         ),
       ),
     );

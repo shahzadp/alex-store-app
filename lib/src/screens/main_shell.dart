@@ -138,8 +138,20 @@ class _SavedBadge extends StatelessWidget {
       initialData: store.state,
       builder: (context, snapshot) {
         final count = snapshot.data?.length ?? 0;
-        if (count == 0) return child;
-        return Badge(label: Text('$count'), child: child);
+        final icon = TweenAnimationBuilder<double>(
+          // Replays when the number changes — a small acknowledgement, not a
+          // celebration, on every save and every remove.
+          key: ValueKey<int>(count),
+          tween: Tween<double>(begin: 0.72, end: 1.0),
+          duration: const Duration(milliseconds: 280),
+          curve: Curves.elasticOut,
+          builder: (context, scale, _) => Transform.scale(
+            scale: scale,
+            child: child,
+          ),
+        );
+        if (count == 0) return icon;
+        return Badge(label: Text('$count'), child: icon);
       },
     );
   }

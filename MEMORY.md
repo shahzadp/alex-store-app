@@ -1340,6 +1340,16 @@ write-up stays as history. The practical consequences to remember are smaller:
   catalog load** (`_prewarmImages` in `main.dart`), because the app previously
   re-downloaded all ~70 KB-per-photo images on every cold start and started
   fetching only as grid cells built. Warm launches now paint from disk.
+- **The storefront is now livelier on purpose (2026-11-18).** Staggered
+  rise-and-fade on grid cards (`seed * 45 ms` stagger, skipped under
+  `MediaQuery.disableAnimationsOf`), an elastic bounce on the save/wishlist
+  heart on every flip, one expanding accent ring when a product lands in the
+  saved list, and an elastic pop on the Saved tab badge on every count change.
+  The monogram in the system splash plus these micro-gestures are the current
+  answer to "the app feels too basic".
+- **Minor updates no longer bump the version number (owner's instruction,
+  2026-11-18).** `version: 1.4.0+10` is the step; don't increment for tweaks
+  or small changes. Bump only when cutting a release that will be published.
 
 ---
 
