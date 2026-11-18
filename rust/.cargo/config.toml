@@ -6,9 +6,8 @@
 #
 #  1. **The Android SDK path must not contain spaces.** Flutter refuses one,
 #     and the NDK's toolchain breaks on them. The SDK lives at
-#     `D:\GitHub-Projects\DoL-by-Alex\devTools\androidsdk`, so
-#     `D:\android-sdk` is a directory junction onto it — `mklink /J`, zero
-#     copy, and every path below is space-free.
+#     `D:\Dev\SDKs\android-sdk` (directly — the old `D:\android-sdk` junction
+#     was removed on 2026-11-07 and nothing should reference it anymore).
 #
 #  2. **There is no MSVC build tools**, so nothing can link against a Windows
 #     system linker here — not even a cross-compile. That is the non-obvious
@@ -33,16 +32,16 @@
 # The trailing `21` is the API level. Android 5.0. Flutter's own minSdk for
 # this release is 21; going lower would drop support for devices that still
 # matter in this market, and Flutter would refuse the APK anyway.
-linker = "D:\\android-sdk\\ndk\\28.2.13676358\\toolchains\\llvm\\prebuilt\\windows-x86_64\\bin\\aarch64-linux-android21-clang.cmd"
+linker = "D:\\Dev\\SDKs\\android-sdk\\ndk\\28.2.13676358\\toolchains\\llvm\\prebuilt\\windows-x86_64\\bin\\aarch64-linux-android21-clang.cmd"
 
 [target.x86_64-linux-android]
 # x86_64 only exists for emulators; there is no device ABI that uses it.
-linker = "D:\\android-sdk\\ndk\\28.2.13676358\\toolchains\\llvm\\prebuilt\\windows-x86_64\\bin\\x86_64-linux-android21-clang.cmd"
+linker = "D:\\Dev\\SDKs\\android-sdk\\ndk\\28.2.13676358\\toolchains\\llvm\\prebuilt\\windows-x86_64\\bin\\x86_64-linux-android21-clang.cmd"
 
 [target.armv7-linux-androideabi]
 # Not built by default — see README. 32-bit ARM is a vanishing share of
 # devices and every 32-bit build adds ~5 MB to the APK for the same weights.
-linker = "D:\\android-sdk\\ndk\\28.2.13676358\\toolchains\\llvm\\prebuilt\\windows-x86_64\\bin\\armv7a-linux-androideabi21-clang.cmd"
+linker = "D:\\Dev\\SDKs\\android-sdk\\ndk\\28.2.13676358\\toolchains\\llvm\\prebuilt\\windows-x86_64\\bin\\armv7a-linux-androideabi21-clang.cmd"
 
 # ── wasm32 ──────────────────────────────────────────────────────────────────
 #
